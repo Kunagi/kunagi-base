@@ -1,0 +1,2 @@
+(ns kunagi-base.util)
+
