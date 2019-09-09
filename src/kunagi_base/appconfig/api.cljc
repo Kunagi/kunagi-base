@@ -4,7 +4,7 @@
 (defonce !config (atom nil))
 
 (defn set-config [config]
-  (tap> [::info :config-set config])
+  (tap> [:info ::config-set config])
   (reset! !config config))
 
 (defn config []
@@ -14,7 +14,7 @@
 (defonce !secrets (atom nil))
 
 (defn set-secrets [config]
-  (tap> [::info :secrets-set (count config)])
+  (tap> [:inf ::secrets-set (count config)])
   (reset! !secrets config))
 
 (defn secrets []
