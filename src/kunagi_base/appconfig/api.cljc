@@ -4,7 +4,7 @@
 (defonce !config (atom nil))
 
 (defn set-config [config]
-  (tap> [:info ::config-set config])
+  (tap> [:inf ::config-set config])
   (reset! !config config))
 
 (defn config []
