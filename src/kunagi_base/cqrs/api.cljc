@@ -13,8 +13,9 @@
 (s/def ::query-request (s/and vector?
                               (s/cat :query-key ::query-key
                                      :args (s/* ::query-arg))))
-(s/def ::query-response (s/or :empty (s/or :nil nil? :empty empty?)
-                              :hit sequential?))
+(s/def ::query-response (s/or :hit sequential?
+                              :empty (s/or :nil nil? :empty empty?)))
+
 
 
 (defonce !registry (atom {:query-responders {}}))
