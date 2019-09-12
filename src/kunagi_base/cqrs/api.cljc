@@ -51,7 +51,8 @@
   (let [query-key (first query-request)
         responders (-> @!registry :query-responders (get query-key))]
     (when (empty? responders)
-      (tap> [:wrn ::no-responders-defined-for-query query-request @!registry]))
+      (tap> [:wrn ::no-responders-defined-for-query {:query query-request
+                                                     :available (-> @!registry :query-responders :keys)}]))
     (reduce
      (fn [result [responder-identifier {:as responder :keys [respond-f]}]]
        (let [response (respond-f context query-request)]
