@@ -13,7 +13,8 @@
 (s/def ::query-request (s/and vector?
                               (s/cat :query-key ::query-key
                                      :args (s/* ::query-arg))))
-(s/def ::query-response sequential?)
+(s/def ::query-response (s/or :empty (s/or :nil nil? :empty empty?)
+                              :hit sequential?))
 
 
 (defonce !registry (atom {:query-responders {}}))
@@ -70,26 +71,11 @@
      :runtime 0}))
 
 
+(defn query-sync-r [context query-request]
+  (-> (query-sync context query-request)
+      :results))
 
-;;; default query responders
-
-
-(def-query-responder
-  ::config
-  :debug/ping
-  (fn [context query]
-    [{:pong query}]))
-
-
-(def-query-responder
-  ::config
-  :appconfig/config
-  (fn [_ _]
-    [(appconfig/config)]))
-
-
-(def-query-responder
-  ::config
-  :appconfig/secrets
-  (fn [_ _]
-    [(appconfig/secrets)]))
+(defn query-sync-r1 [context query-request]
+  (-> (query-sync context query-request)
+      :results
+      first))
