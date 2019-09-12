@@ -29,13 +29,13 @@
 
 (defn context-has-permissions?
   [context req-perms]
-  (let [user-id (get context :auth/user-id)]
-    (if-not user-id
-      false
-      (reduce
-       (fn [result req-perm]
-         (and result (context-has-permission? context req-perm)))
-       true
-       req-perms))))
-
-
+  (if (empty? req-perms)
+    true
+    (let [user-id (get context :auth/user-id)]
+      (if-not user-id
+        false
+        (reduce
+         (fn [result req-perm]
+           (and result (context-has-permission? context req-perm)))
+         true
+         req-perms)))))
