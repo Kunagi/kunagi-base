@@ -1,11 +1,9 @@
 (ns kunagi-base.auth.users-db
   (:require
-   [facts-db.api :as db]
-   [facts-db.ddapi :refer [def-api def-event] :as ddapi]))
+   [facts-db.api :as db :refer [def-api def-event def-query]]))
 
 
 (def root-id "users.index")
-
 
 
 (def-api ::users-db
@@ -14,26 +12,11 @@
     [{:db/id root-id
       :index/users []}]))
 
-;;; events
-
-(def-event ::user-registered
-  (fn [db {:keys [id name google-email]}]
-      [{:db/id id
-        :user/name name
-        :user/google-email google-email
-        :db/add-ref-n [root-id :index/users]}]))
+(defn new-db []
+  (-> (db/new-db :users-db {})))
 
 
-;;; api
-
-
-(defn new-users-db
-  []
-  (-> (ddapi/new-db :users-db {})))
-
-
-(defn apply-events [db events]
-  (ddapi/events> db events))
+(def apply-events db/apply-events)
 
 
 (defn user-id-by-google-email [db google-email]
@@ -47,3 +30,21 @@
 
 (defn user--for-browserapp [db user-id]
   (db/tree db user-id {}))
+
+
+;;; queries
+
+(def-query ::user--for-browserapp user--for-browserapp)
+
+
+;;; events
+
+(def-event ::user-registered
+  (fn [db {:keys [id name google-email]}]
+      [{:db/id id
+        :user/name name
+        :user/google-email google-email
+        :db/add-ref-n [root-id :index/users]}]))
+
+
+;;; api

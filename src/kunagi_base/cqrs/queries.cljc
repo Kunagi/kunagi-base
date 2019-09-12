@@ -1,5 +1,7 @@
 (ns kunagi-base.cqrs.queries
   (:require
+   [facts-db.api :as db]
+
    [kunagi-base.cqrs.api :as cqrs :refer [def-query-responder]]
    [kunagi-base.appconfig.api :as appconfig]
    [kunagi-base.auth.users-db :as users-db]))
@@ -38,7 +40,8 @@
 (def-query-responder
   :auth/user--for-browserapp
   ::ident
-  (fn [context [_ user-id]]
+  (fn [context _]
     (when-let [users-db (-> context :db :users-db)]
-      (when-let [user (users-db/user--for-browserapp users-db (-> context :auth/user-id))]
+      (when-let [user (db/query users-db [:user--for-browserapp (-> context :auth/user-id)])]
+                 ;;(users-db/user--for-browserapp users-db (-> context :auth/user-id))]
         [user]))))
