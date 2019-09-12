@@ -11,6 +11,11 @@
   {::identifier ::identifier})
 
 
+(defn from-main [args]
+  (-> (new-context)
+      (assoc :main/args args)))
+
+
 (defn from-http-session [session]
   (let [user-id (get session :auth/user-id)]
     (-> (new-context)
