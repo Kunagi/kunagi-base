@@ -23,7 +23,7 @@
 
 (defn def-query-responder
   ([query-key ident respond-f]
-   (def-query-responder ident query-key respond-f {}))
+   (def-query-responder query-key ident respond-f {}))
   ([query-key ident respond-f options]
    (tap> [:dbg ::def-query-responder ident query-key])
    (s/assert ::query-responder-ident ident)
