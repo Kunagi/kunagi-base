@@ -1,11 +1,11 @@
 (ns kunagi-base.startup
   (:require
-   [kunagi-base.resources :as resources]
+   [kunagi-base.assets :as assets]
    [kunagi-base.appmodel :as appmodel]))
 
 
 (defn init-functions [pull-template]
-  (appmodel/entities :index/init-functions pull-template))
+  (appmodel/entities (appmodel/model) :index/init-functions pull-template))
 
 
 (defn def-init-function [init-function]
@@ -26,5 +26,5 @@
 
 (defn init-app-db [app-db]
   (-> app-db
-      (resources/load-resources)
+      (assets/load-assets)
       (exec-init-functions)))

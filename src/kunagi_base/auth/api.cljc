@@ -3,6 +3,7 @@
 
 (def default-perms
   #{:auth/authenticated
+    :base/read-assets
     :cqrs/query
     :frankenburg/stammdaten
     :frankenburg/geschaeftsdaten})
