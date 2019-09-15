@@ -4,29 +4,27 @@
    [kunagi-base.auth.api :as auth]
    [kunagi-base.appmodel :as appmodel]))
 
-
-(defn asset-from-db [db module-ident asset-pool-ident asset-path]
-  (get-in db [:asset-pools module-ident asset-pool-ident asset-path]))
+(appmodel/def-extension
+  {:schema {:asset/module {:db/type :db.type/ref}}})
 
 
 (defn asset-for-output [path context]
   (let [[module-ident asset-pool-ident asset-path] path
-        model (appmodel/model)
-        asset-pool-id (appmodel/entity-id module-ident :asset-pool asset-pool-ident)
-        asset-pool (db/tree model asset-pool-id {})
-        _ (tap> [:!!! ::asset-pool asset-pool-id asset-pool])
-        req-perms (:asset-pool/req-perms asset-pool)]
+        _ (tap> [:!!! ::asset-for-output path])
+        [req-perms] (appmodel/q!
+                     '[:find [?req-perms]
+                       :in $ ?module-ident ?asset-pool-ident
+                       :where
+                       [?a :asset-pool/req-perms ?req-perms]
+                       [?a :asset-pool/ident ?asset-pool-ident]
+                       [?a :asset-pool/module ?m]
+                       [?m :module/ident ?module-ident]]
+                     [module-ident asset-pool-ident])
+        _ (tap> [:!!! ::perms req-perms])]
+    ;;TODO permissions
     (if-not (auth/context-has-permissions? context req-perms)
       :auth/not-permitted
-      (-> context
-          :db
-          (asset-from-db module-ident asset-pool-ident asset-path)))))
-
-
-
-(defn asset-pools-with-load-on-startup [pull-template]
-  (->> (appmodel/entities (appmodel/model) :index/asset-pools pull-template)
-       (filter #(get % :asset-pool/load-on-startup?))))
+      (get-in context [:db :assets module-ident asset-pool-ident asset-path]))))
 
 
 (defn def-asset-pool [asset-pool]
@@ -35,24 +33,28 @@
    asset-pool))
 
 
-(defn- load-asset [asset-pool app-db asset-path]
-  (let [load-f           (-> asset-pool :asset-pool/load-f)
-        module-ident     (-> asset-pool :asset-pool/module :module/ident)
-        asset-pool-ident (-> asset-pool :asset-pool/ident)
-        db-path [:asset-pools module-ident asset-pool-ident asset-path]]
+(defn- load-asset
+  [[module-ident asset-pool-ident load-f :as asset-pool] app-db asset-path]
+  (let [db-path [:assets module-ident asset-pool-ident asset-path]]
     (tap> [:dbg ::load-asset {:db-path db-path
                               :asset-path asset-path}])
     (->> (load-f app-db asset-path)
          (assoc-in app-db db-path))))
 
 
-(defn- load-assets-from-pool [app-db asset-pool]
-  (let [module-ident (-> asset-pool :asset-pool/module :module/ident)
-        assets-paths (-> asset-pool :asset-pool/load-on-startup)]
-    (reduce (partial load-asset asset-pool) app-db assets-paths)))
+(defn- load-assets-from-pool
+  [app-db [_ _ _ assets-paths :as asset-pool]]
+  (reduce (partial load-asset asset-pool) app-db assets-paths))
 
 
-(defn load-assets [app-db]
+(defn load-startup-assets [app-db]
   (reduce load-assets-from-pool
           app-db
-          (asset-pools-with-load-on-startup {:asset-pool/module {}})))
+          (appmodel/q! '[:find ?module-ident ?asset-pool-ident ?load-f ?asset-paths
+                         :where
+                         [?e :asset-pool/load-on-startup? true]
+                         [?e :asset-pool/ident ?asset-pool-ident]
+                         [?e :asset-pool/load-f ?load-f]
+                         [?e :asset-pool/load-on-startup ?asset-paths]
+                         [?e :asset-pool/module ?m]
+                         [?m :module/ident ?module-ident]])))

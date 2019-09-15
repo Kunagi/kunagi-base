@@ -1,5 +1,14 @@
-(ns kunagi-base.util
+(ns kunagi-base.utils
   (:refer-clojure :exclude [assert]))
+
+
+
+
+(defn new-uuid
+  []
+  (str #?(:cljs (random-uuid)
+          :clj  (java.util.UUID/randomUUID))))
+
 
 (defmacro assert
   "Check if the given form is truthy, otherwise throw an exception with

@@ -4,8 +4,8 @@
    [kunagi-base.appmodel :as appmodel]))
 
 
-(defn init-functions [pull-template]
-  (appmodel/entities (appmodel/model) :index/init-functions pull-template))
+(defn init-functions [pull-template])
+  ;; FIXME(appmodel/entities (appmodel/model) :index/init-functions pull-template))
 
 
 (defn def-init-function [init-function]
@@ -26,5 +26,5 @@
 
 (defn init-app-db [app-db]
   (-> app-db
-      (assets/load-assets)
+      (assets/load-startup-assets)
       (exec-init-functions)))
