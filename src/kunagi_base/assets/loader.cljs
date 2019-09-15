@@ -29,7 +29,8 @@
                    {:asset-pool-id asset-pool-id
                     :asset-path asset-path
                     :url url
-                    :error error}]))})))
+                    :error error}]))})
+    nil))
 
 
 (rf/reg-event-db

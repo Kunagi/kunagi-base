@@ -6,6 +6,9 @@
    [kunagi-base.utils :as utils]))
 
 
+;;FIXME update entities instead of inserting
+
+
 (defn- new-db []
   (let [schema {:index/modules {:db/type :db.type/ref
                                 :db/cardinality :db.cardinality/many}
