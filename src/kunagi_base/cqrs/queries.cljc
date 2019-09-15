@@ -7,27 +7,6 @@
    [kunagi-base.auth.users-db :as users-db]))
 
 
-(def-query-responder
-  :debug/ping
-  ::ident
-  (fn [context query]
-    [{:pong query}]))
-
-
-(def-query-responder
-  :appconfig/config
-  ::ident
-  (fn [_ _]
-    [(appconfig/config)]))
-
-
-(def-query-responder
-  :appconfig/secrets
-  ::ident
-  (fn [_ _]
-    [(appconfig/secrets)]))
-
-
 ;;; auth
 
 (def-query-responder
