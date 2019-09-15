@@ -1,6 +1,8 @@
 (ns kunagi-base.appmodel
   (:require
    [datascript.core :as d]
+
+   [kunagi-base.logging.tap]
    [kunagi-base.utils :as utils]))
 
 
@@ -12,32 +14,6 @@
     (-> (d/empty-db schema)
         (d/db-with [index]))))
 
-  ;; (-> (db/new-db)
-  ;;     (db/update-facts
-  ;;      [{:db/id index-id
-  ;;        :index/modules []
-  ;;        :index/current-module nil}])))
-
-
-
-
-;; (defn entities [db index-ref pull-template]
-;;   (-> db
-;;       (db/tree index-id {index-ref pull-template})
-;;       (get index-ref)))
-
-
-
-;; (defn entity-id [module-ident entity-type entity-ident]
-;;   (str entity-type ":"
-;;        (when module-ident (str module-ident ":"))
-;;        entity-ident))
-
-
-;; (defn- assoc-id [entity module-ident entity-type entity-ident]
-;;   (if (:db/id entity)
-;;     entity
-;;     (assoc entity :db/id (entity-id module-ident entity-type entity-ident))))
 
 (defn q
   ([db query]
@@ -45,8 +21,8 @@
   ([db query params]
    (try
      (let [ret (apply d/q (into [query db] params))]
-       (tap> [:!!! ::query-result {:query query
-                                   :result ret}])
+       ;; (tap> [:!!! ::query-result {:query query
+       ;;                             :result ret}])
        ret)
      (catch  #?(:clj Exception :cljs :default) ex
        (tap> [:err ::query-failed ex])
@@ -55,6 +31,10 @@
                        ex))))))
 
 
+(defn entity
+  [db id]
+  (d/entity db id))
+
 
 (defn current-module-id [db]
   (first
@@ -62,11 +42,6 @@
       '[:find [?module-id]
         :where
         [?e :index/current-module ?module-id]])))
-
-
-;; (defn module-by-ident [db module-ident pull-template]
-;;   (let [module-id (db/find-id db #(= module-ident (:module/ident %)))]
-;;     (db/tree db module-id pull-template)))
 
 
 ;;;
@@ -83,6 +58,11 @@
    (q @!db query params))
   ([query]
    (q @!db query)))
+
+
+(defn entity!
+  [id]
+  (entity @!db id))
 
 
 (defn- extend-schema [db schema-extension]
@@ -110,11 +90,10 @@
 
 (defn register-entity
   [type entity]
+  (tap> [:dbg ::register entity])
   (let [db @!db
         entity-id -1
         module-id (current-module-id db)
-        ;;module-ident (db/fact db module-id :module/ident)
-        ;;entity-ident (get entity (keyword (name type) "ident"))]
         entity (assoc entity :db/id entity-id)
         entity (assoc entity :entity/type type)
         entity (if (= :module type)

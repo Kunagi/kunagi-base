@@ -5,7 +5,7 @@
   #{:auth/authenticated
     :base/read-assets
     :cqrs/query
-    :frankenburg/stammdaten
+    :frankenburg/stammdaten ; deprecated
     :frankenburg/geschaeftsdaten})
 
 

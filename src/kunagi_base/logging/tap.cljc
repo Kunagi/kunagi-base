@@ -1,6 +1,8 @@
 (ns kunagi-base.logging.tap)
 
 
+#?(:cljs (enable-console-print!))
+
 
 (defn log-record
   [{:as record :keys [source-ns source-name level payload]}]
@@ -85,4 +87,5 @@
 (defonce registered?
   (do
     (register-tap)
+    (println "tap> logging activated")
     true))
