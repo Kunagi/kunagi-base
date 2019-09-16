@@ -11,13 +11,10 @@
 
 
 (defn- new-db []
-  (let [schema {:index/current-module {:db/type :db.type/ref}
-                :module/id {:db/unique :db.unique/identity}
+  (let [schema {:module/id {:db/unique :db.unique/identity}
                 :module/ident {:db/unique :db.unique/identity}
-                :module/namespace {:db/unique :db.unique/identity}}
-        index {:entity/type :index}]
-    (-> (d/empty-db schema)
-        (d/db-with [index]))))
+                :module/namespace {:db/unique :db.unique/identity}}]
+    (-> (d/empty-db schema))))
 
 
 (defn q
@@ -39,14 +36,6 @@
 (defn entity
   [db id]
   (d/entity db id))
-
-
-(defn current-module-id [db]
-  (first
-   (q db
-      '[:find [?module-id]
-        :where
-        [?e :index/current-module ?module-id]])))
 
 
 ;;;
@@ -71,7 +60,7 @@
 
 
 (defn- extend-schema [db schema-extension]
-  (let [datoms (d/datoms db :eavt)
+  (let [datoms (or (d/datoms db :eavt) [])
         schema (merge (get db :schema)
                       schema-extension)]
     (d/init-db datoms schema)))
@@ -151,12 +140,6 @@
                         module-id other-module-id)
         module (assoc module :module/ident module-ident)
         module (assoc module :module/namespace module-namespace)
-        module (assoc module :entity/type :module)
-        index-id (first
-                  (q db '[:find [?e]
-                          :where
-                          [?e :entity/type :index]]))]
+        module (assoc module :entity/type :module)]
     (tap> [:dbg ::def-module module])
-    (update-facts
-      [module
-       [:db/add index-id :index/current-module [:module/id module-id]]])))
+    (update-facts [module])))
