@@ -6,7 +6,7 @@
 
 (s/def ::identifier (= ::identifier))
 (s/def ::context (s/keys :req [::identifier]))
-(s/def ::app-db-identifer #(= ::db-identifier %))
+(s/def ::app-db-identifer #(= ::app-db-identifier %))
 (s/def ::app-db (s/keys :req [::app-db-identifier]))
 
 
@@ -16,7 +16,7 @@
 
 (defn init-app-db [db]
   (-> db
-      (assoc ::db-identifier ::db-identifier)))
+      (assoc ::app-db-identifier ::app-db-identifier)))
 
 
 (defonce !app-db (atom {}))
