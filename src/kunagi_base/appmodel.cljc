@@ -93,6 +93,7 @@
 
 (defn register-entity
   [type entity]
+  ;; TODO extract type from :???/ident
   (tap> [:dbg ::register entity])
   (let [db @!db
         entity-id -1

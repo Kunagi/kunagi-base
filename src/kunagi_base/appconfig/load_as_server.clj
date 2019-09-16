@@ -15,6 +15,6 @@
 
 (defonce load-once!
   (do
-    (appconfig-api/set-config (load-file "config"))
-    (appconfig-api/set-secrets (load-file "secrets"))
+    (appconfig-api/set-config! (load-file "config"))
+    (appconfig-api/set-secrets! (load-file "secrets"))
     :done))
