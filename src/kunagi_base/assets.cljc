@@ -4,7 +4,7 @@
    [facts-db.api :as db]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.appmodel :as appmodel :refer [def-module]]
-   [kunagi-base.events :refer [def-event-handler]]
+   [kunagi-base.events :refer [def-event def-event-handler]]
    [kunagi-base.assets.loader :as loader]))
 
 
@@ -101,6 +101,12 @@
 
 (def-module
   {:module/id ::assets})
+
+
+(def-event
+  {:event/id ::asset-requested
+   :event/ident :assets/asset-requested
+   :event/req-perms [:assets/read]})
 
 
 (def-event-handler

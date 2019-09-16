@@ -3,9 +3,8 @@
 
 (def default-perms
   #{:auth/authenticated
-    :base/read-assets
+    :assets/read
     :cqrs/query
-    :frankenburg/stammdaten ; deprecated
     :frankenburg/geschaeftsdaten})
 
 
@@ -15,6 +14,11 @@
     (-> context
         (assoc :auth/user-perms default-perms))
     context))
+
+
+(defn context-authorized?
+  [context]
+  (-> context :auth/authorized?))
 
 
 (defn context-has-permission?
