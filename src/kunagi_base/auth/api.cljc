@@ -22,7 +22,8 @@
   (let [user-id (get context :auth/user-id)]
     (if-not user-id
       false
-      (let [user-perms (get context :auth/user-perms)]
+      (let [user-perms (or (get context :auth/user-perms)
+                           #{})]
         ;; (tap> [:err ::permission-check {:user-perms user-perms
         ;;                                 :req-perm req-perm}])
         (user-perms req-perm)))))

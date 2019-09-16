@@ -3,7 +3,8 @@
    [re-frame.core :as rf]
    [facts-db.api :as db]
    [kunagi-base.auth.api :as auth]
-   [kunagi-base.appmodel :as appmodel]
+   [kunagi-base.appmodel :as appmodel :refer [def-module]]
+   [kunagi-base.events :refer [def-event-handler]]
    [kunagi-base.assets.loader :as loader]))
 
 
@@ -41,17 +42,21 @@
       (load-asset (-> context :db) asset-pool asset-path))))
 
 
+(defn- asset-pool-id [[module-ident asset-pool-ident]]
+  (first
+   (appmodel/q!
+    '[:find [?a]
+      :in $ ?module-ident ?asset-pool-ident
+      :where
+      [?a :asset-pool/ident ?asset-pool-ident]
+      [?a :asset-pool/module ?m]
+      [?m :module/ident ?module-ident]]
+    [module-ident asset-pool-ident])))
+
+
 (defn asset-for-output [path context]
   (let [[module-ident asset-pool-ident asset-path] path
-        asset-pool-id (first
-                       (appmodel/q!
-                        '[:find [?a]
-                          :in $ ?module-ident ?asset-pool-ident
-                          :where
-                          [?a :asset-pool/ident ?asset-pool-ident]
-                          [?a :asset-pool/module ?m]
-                          [?m :module/ident ?module-ident]]
-                        [module-ident asset-pool-ident]))
+        asset-pool-id (asset-pool-id path)
         asset-pool (appmodel/entity! asset-pool-id)
         req-perms (-> asset-pool :asset-pool/req-perms)]
     (if-not (auth/context-has-permissions? context req-perms)
@@ -84,3 +89,21 @@
           (appmodel/q! '[:find ?e ?asset-paths
                          :where
                          [?e :asset-pool/load-on-startup ?asset-paths]])))
+
+
+(defn on-asset-requested [[_ path] context]
+  (tap> [:dbg ::asset-requested path])
+  (let [asset (asset-for-output path context)
+        response-f (-> context :comm/response-f)]
+    (response-f [:assets/asset-received {:path path
+                                         :data asset}])))
+
+
+(def-module
+  {:module/id ::assets})
+
+
+(def-event-handler
+  {:event-handler/id ::asset-requested
+   :event-handler/event-ident :assets/asset-requested
+   :event-handler/f on-asset-requested})

@@ -52,6 +52,12 @@
       (assoc :db @!app-db)))
 
 
+(defn from-http-async-data [data]
+  (-> (from-http-request (-> data :ring-req))
+      (assoc :http/client-id (-> data :client-id))
+      (assoc :http/client-event (-> data :event))))
+
+
 (defn from-reframe-event [db]
   (-> (new-context)
       (assoc :db db)))
