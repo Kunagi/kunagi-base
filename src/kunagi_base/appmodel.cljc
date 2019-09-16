@@ -1,5 +1,6 @@
 (ns kunagi-base.appmodel
   (:require
+   [clojure.spec.alpha :as s]
    [datascript.core :as d]
 
    [kunagi-base.logging.tap]
@@ -10,9 +11,10 @@
 
 
 (defn- new-db []
-  (let [schema {:index/modules {:db/type :db.type/ref
-                                :db/cardinality :db.cardinality/many}
-                :index/current-module {:db/type :db.type/ref}}
+  (let [schema {:index/current-module {:db/type :db.type/ref}
+                :module/id {:db/unique :db.unique/identity}
+                :module/ident {:db/unique :db.unique/identity}
+                :module/namespace {:db/unique :db.unique/identity}}
         index {:entity/type :index}]
     (-> (d/empty-db schema)
         (d/db-with [index]))))
@@ -91,32 +93,70 @@
                       ex)))))
 
 
+(defn- id-key [entity]
+  (->> entity
+       keys
+       (filter #(= "id" (name %)))
+       first))
+
+
+(s/def ::id-key qualified-keyword?)
+(s/def ::entity-id qualified-keyword?)
+
 (defn register-entity
   [type entity]
   ;; TODO extract type from :???/ident
   (tap> [:dbg ::register entity])
   (let [db @!db
-        entity-id -1
-        module-id (current-module-id db)
-        entity (assoc entity :db/id entity-id)
+        id-key (id-key entity)
+        _ (utils/assert-spec ::id-key
+                             id-key
+                             "Invalid :???/id passed to register-entity.")
+        entity-id (get entity id-key)
+        _ (utils/assert-spec ::entity-id
+                             entity-id
+                             (str "Invalid " id-key " passed to register-entity."))
+        module-namespace (namespace entity-id)
         entity (assoc entity :entity/type type)
-        entity (if (= :module type)
-                 entity
-                 (assoc entity (keyword (name type) "module") module-id))]
+        entity (assoc entity
+                      (keyword (name type) "module")
+                      [:module/namespace module-namespace])]
     (update-facts
      [entity])))
 
 
+
+(s/def ::module-id qualified-keyword?)
+
 (defn def-module
   [module]
-  (tap> [:dbg ::def-module module])
   (let [db @!db
+        module-id (get module :module/id)
+        _ (utils/assert-spec ::module-id
+                             module-id
+                             "Invalid :module/id passed to def-module.")
+        module-ident (keyword (name module-id))
+        module-namespace (namespace module-id)
+        other-module-id (first
+                         (q db
+                            '[:find [?module-id]
+                              :in $ ?module-namespace
+                              :where
+                              [?e :module/namespace ?module-namespace]
+                              [?e :module/id ?module-id]]
+                            [module-namespace]))
+        _ (utils/assert (or (nil? other-module-id)
+                            (= module-id other-module-id))
+                        (str "Multiple modules in the same namespace: " module-namespace)
+                        module-id other-module-id)
+        module (assoc module :module/ident module-ident)
+        module (assoc module :module/namespace module-namespace)
         module (assoc module :entity/type :module)
-        module (assoc module :db/id -1)
         index-id (first
                   (q db '[:find [?e]
                           :where
                           [?e :entity/type :index]]))]
+    (tap> [:dbg ::def-module module])
     (update-facts
-     [[:db/add index-id :index/current-module -1]
-      module])))
+      [module
+       [:db/add index-id :index/current-module [:module/id module-id]]])))

@@ -1,7 +1,7 @@
 (ns kunagi-base.utils
-  (:refer-clojure :exclude [assert]))
-
-
+  (:refer-clojure :exclude [assert])
+  (:require
+   [clojure.spec.alpha :as s]))
 
 
 (defn new-uuid
@@ -19,3 +19,16 @@
        (throw (ex-info ~otherwise-msg
                        (hash-map :form '~form
                                  ~@(mapcat (fn [v] [`'~v v]) values))))))
+
+(defn assert-spec
+  [spec value otherwise-msg]
+  (if (s/valid? spec value)
+    value
+    (throw (ex-info (str otherwise-msg
+                         "\nValue does not conform to spec "
+                         spec
+                         ": "
+                         (pr-str value))
+                    {:spec spec
+                     :value value
+                     :spec-explain (s/explain-str spec value)}))))
