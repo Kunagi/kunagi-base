@@ -3,6 +3,7 @@
    [clojure.stacktrace :as stacktrace]
    [clojure.term.colors :as c]
    [puget.printer :as puget]
+   [io.aviso.exception :as aviso]
 
    [kunagi-base.logging.tap :as logging]))
 
@@ -24,9 +25,7 @@
        (c/white source-ns))
       (if payload
         (if (instance? Throwable payload)
-          (do
-            (stacktrace/print-cause-trace payload)
-            (println (level-bg (c/white (stacktrace/root-cause payload)))))
+          (aviso/write-exception payload)
           (puget/cprint payload {:option :here}))
         (println))
       (println))))

@@ -6,4 +6,5 @@
            datascript                {:mvn/version "0.18.5"}
 
            ;; clj
-           clojure-term-colors       {:mvn/version "0.1.0"}}}
+           clojure-term-colors       {:mvn/version "0.1.0"}
+           io.aviso/pretty           {:mvn/version "0.1.37"}}}
