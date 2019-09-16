@@ -8,36 +8,33 @@
    [kunagi-base.appmodel :as appmodel]))
 
 
-(defn init-functions [pull-template])
-  ;; FIXME(appmodel/entities (appmodel/model) :index/init-functions pull-template))
-
-
 (defn def-init-function [init-function]
   (appmodel/register-entity
    :init-function
    init-function))
 
 
-(defn- exec-init-function [app-db [ident f]]
-  (tap> [:dbg ::run-init-function ident])
-  ;; TODO assert result is app-db
-  (f app-db))
+(defn- exec-init-function [app-db [id f]]
+  (tap> [:dbg ::run-init-function id])
+  (-> app-db
+      f
+      (context/assert-app-db (str "Init function " id " failed to return a valid db."))))
 
 
 (defn exec-init-functions [app-db]
   (reduce
    exec-init-function
    app-db
-   (appmodel/q! '[:find ?ident ?f
+   (appmodel/q! '[:find ?id ?f
                   :where
-                  [?e :init-function/ident ?ident]
+                  [?e :init-function/id ?id]
                   [?e :init-function/f ?f]])))
 
 
 (defn- -init-app-db [app-db initial-data]
   (tap> [:dbg ::init-app-db initial-data])
   (-> app-db
-      (assoc ::identifier ::identifier)
+      (context/init-app-db)
       (merge initial-data)
       (assets/load-startup-assets)
       (exec-init-functions)))

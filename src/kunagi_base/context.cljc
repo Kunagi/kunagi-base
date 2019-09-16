@@ -1,10 +1,22 @@
 (ns kunagi-base.context
  (:require
-  [clojure.spec.alpha :as s]))
+  [clojure.spec.alpha :as s]
+  [kunagi-base.utils :as utils]))
 
 
 (s/def ::identifier (= ::identifier))
 (s/def ::context (s/keys :req [::identifier]))
+(s/def ::app-db-identifer #(= ::db-identifier %))
+(s/def ::app-db (s/keys :req [::app-db-identifier]))
+
+
+(defn assert-app-db [db message]
+  (utils/assert-spec ::app-db db message))
+
+
+(defn init-app-db [db]
+  (-> db
+      (assoc ::db-identifier ::db-identifier)))
 
 
 (defonce !app-db (atom {}))
