@@ -82,25 +82,13 @@
                       ex)))))
 
 
-(defn- id-key [entity]
-  (->> entity
-       keys
-       (filter #(= "id" (name %)))
-       first))
-
-
-(s/def ::id-key qualified-keyword?)
 (s/def ::entity-id qualified-keyword?)
 
 (defn register-entity
   [type entity]
-  ;; TODO extract type from :???/ident
   (tap> [:dbg ::register entity])
   (let [db @!db
-        id-key (id-key entity)
-        _ (utils/assert-spec ::id-key
-                             id-key
-                             "Invalid :???/id passed to register-entity.")
+        id-key (keyword (name type) "id")
         entity-id (get entity id-key)
         _ (utils/assert-spec ::entity-id
                              entity-id
@@ -112,7 +100,6 @@
                       [:module/namespace module-namespace])]
     (update-facts
      [entity])))
-
 
 
 (s/def ::module-id qualified-keyword?)
