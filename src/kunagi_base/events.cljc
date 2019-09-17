@@ -37,7 +37,7 @@
     (let [event-ident (first event-v)
           event (appmodel/entity! [:event/ident event-ident])
           req-perms (-> event :event/req-perms)]
-      (tap> [:!!! ::event event-v event req-perms])
+      ;; (tap> [:!!! ::event event-v event req-perms])
       (if (nil? req-perms)
         false
         (auth/context-has-permissions? context req-perms)))))

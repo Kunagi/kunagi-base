@@ -41,25 +41,24 @@
    :projector/apply-event-f p-oauth-userinfos/apply-event})
 
 
-;; TODO remove
-(def-init-function
-  {:init-function/id ::debug
-   :init-function/f
-   (fn [db]
-     (es/aggregate-events
-      [:auth/oauth-users "sigleton"]
-      [
-       [:user-signed-up
-        {:user-id "5c876588-d3b9-4951-8b0b-9fc00a5f3373"
-         :oauth-id [:google "12345"]}]])
+;; (def-init-function
+;;   {:init-function/id ::debug
+;;    :init-function/f
+;;    (fn [db]
+;;      (es/aggregate-events
+;;       [:auth/oauth-users "sigleton"]
+;;       [
+;;        [:user-signed-up
+;;         {:user-id "5c876588-d3b9-4951-8b0b-9fc00a5f3373"
+;;          :oauth-id [:google "12345"]}]])
 
-     (es/aggregate-events
-      [:auth/oauth-userinfos "sigleton"]
-      [
-       [:oauth-userinfo-received
-        {:service :google
-         :userinfo {:sub "12345"
-                    :email "witoslaw.koczewski@gmail.com"
-                    :name "Witoslaw Koczewski"
-                    :some-other-stuff "1234"}}]])
-     db)})
+;;      (es/aggregate-events
+;;       [:auth/oauth-userinfos "sigleton"]
+;;       [
+;;        [:oauth-userinfo-received
+;;         {:service :google
+;;          :userinfo {:sub "12345"
+;;                     :email "witoslaw.koczewski@gmail.com"
+;;                     :name "Witoslaw Koczewski"
+;;                     :some-other-stuff "1234"}}]])
+;;      db)})

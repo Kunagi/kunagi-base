@@ -26,7 +26,7 @@
   (let [aggregator-id (-> projector :projector/aggregator-id)
         aggregator-db-id (-> (am/entity! [:aggregator/id aggregator-id]) :db/id)
         projector (assoc projector :projector/aggregator aggregator-db-id)]
-    (tap> [:!!! ::def-projector projector aggregator-id aggregator-db-id])
+    ;;; (tap> [:!!! ::def-projector projector aggregator-id aggregator-db-id])
     (am/register-entity :projector projector)))
 
 
