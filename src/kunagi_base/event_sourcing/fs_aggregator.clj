@@ -3,30 +3,31 @@
    [kunagi-base.event-sourcing.aggregator :as aggregator]))
 
 
+(defonce !agents (atom {}))
 
 
-
-
-(defonce !aggregate-agents (atom {}))
-
-
-
-(defn- new-aggregate-agent []
+(defn- new-agent []
   (agent nil
          :error-handler
-         (fn [ag ex] (tap> [:err ::store-tx-failed ex]))))
+         (fn [ag ex] (tap> [:err ::agent-failed ex]))))
 
 
-(defn- get-agent [aggregate]
-  (locking !aggregate-agents
-    (if-let [aggregate-agent (get-in @!aggregate-agents aggregate)]
-      aggregate-agent
-      (let [aggregate-agent (new-aggregate-agent)]
-        (swap! !aggregate-agents assoc-in aggregate aggregate-agent)
-        aggregate-agent))))
+(defn- get-agent [path]
+  (locking !agents
+    (if-let [ag (get-in @!agents path)]
+      ag
+      (let [ag (new-agent)]
+        (swap! !agents assoc-in path ag)
+        ag))))
+
+
+(defn send-off-to [path update-f]
+  (let [!ag (get-agent path)]
+    (send-off !ag update-f)))
 
 
 (def base-path "app-data/event-sourcing/aggregates")
+
 
 (defn- filename [o]
   (cond
@@ -63,8 +64,7 @@
 
 (defn store-tx!
   [aggregate tx callback-f]
-  (let [ag (get-agent aggregate)]
-    (send-off ag (partial store-tx aggregate tx callback-f))))
+  (send-off-to aggregate (partial store-tx aggregate tx callback-f)))
 
 
 

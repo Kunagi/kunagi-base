@@ -13,7 +13,7 @@
 
 
 (defn apply-event [db event]
-  (tap> [:!!! ::apply-event event])
+  ;; (tap> [:!!! ::apply-event event])
   (if-let [f (case (first event)
                :oauth-userinfo-received oauth-userinfo-received
                nil)]
