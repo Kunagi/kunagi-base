@@ -2,13 +2,13 @@
 
 
 (defn- new-db []
-  {:oauth->user {}})
+  {:service->sub->userinfo {}})
 
 
 (defn- oauth-userinfo-received
   [db [_ {:keys [service userinfo]}]]
   (if-let [sub (-> userinfo :sub)]
-    (update-in db [:oauth->user service sub] merge userinfo)
+    (update-in db [:service->sub->userinfo service sub] merge userinfo)
     db))
 
 
