@@ -4,11 +4,14 @@
    [clojure.spec.alpha :as s]))
 
 
-(defn new-uuid
-  []
+(defn new-uuid []
   (str #?(:cljs (random-uuid)
           :clj  (java.util.UUID/randomUUID))))
 
+
+(defn current-time-millis []
+  #?(:cljs (.getTime (js/Date.))
+     :clj  (System/currentTimeMillis)))
 
 (defmacro assert
   "Check if the given form is truthy, otherwise throw an exception with

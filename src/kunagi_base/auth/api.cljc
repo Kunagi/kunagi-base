@@ -8,11 +8,15 @@
     :frankenburg/geschaeftsdaten})
 
 
+(defn users-perms [context]
+  default-perms)
+
+
 (defn update-context
   [context]
   (if-let [user-id (get context :auth/user-id)]
     (-> context
-        (assoc :auth/user-perms default-perms))
+        (assoc :auth/user-perms (users-perms context)))
     context))
 
 

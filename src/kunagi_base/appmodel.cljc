@@ -24,7 +24,9 @@
    (try
      (let [ret (apply d/q (into [query db] params))]
        ;; (tap> [:!!! ::query-result {:query query
-       ;;                             :result ret}])
+       ;;                             :result ret
+       ;;                             :params params
+       ;;                             :db db}])
        ret)
      (catch  #?(:clj Exception :cljs :default) ex
        (tap> [:err ::query-failed ex])
