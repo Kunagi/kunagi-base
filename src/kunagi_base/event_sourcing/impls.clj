@@ -10,3 +10,8 @@
 
 (defn update-projection [aggregate projection-ident update-f]
   (projector/update-projection aggregate projection-ident update-f))
+
+
+(defn projection-from-context [context aggregate projection-ident]
+  (let [projection (projector/projection aggregate projection-ident)]
+    projection))

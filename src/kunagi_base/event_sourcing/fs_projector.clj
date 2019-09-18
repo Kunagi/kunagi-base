@@ -1,26 +1,10 @@
-(ns kunagi-base.event-sourcing.fs-projector)
-
-(defonce !agents (atom {}))
-
-
-(defn- new-agent []
-  (agent nil
-         :error-handler
-         (fn [ag ex] (tap> [:err ::agent-failed ex]))))
+(ns kunagi-base.event-sourcing.fs-projector
+  (:require
+   [kunagi-base.utils :as utils]))
 
 
-(defn- get-agent [path]
-  (locking !agents
-    (if-let [ag (get-in @!agents path)]
-      ag
-      (let [ag (new-agent)]
-        (swap! !agents assoc-in path ag)
-        ag))))
-
-
-(defn send-off-to [path update-f]
-  (let [!ag (get-agent path)]
-    (send-off !ag update-f)))
+(defn- handle-error [ag ex]
+  (tap> [:err ::projection-agent-failed ex]))
 
 
 (def base-path "app-data/event-sourcing/projections")
@@ -34,56 +18,75 @@
     :else (str o)))
 
 
-(defn projection-path [[aggregate-ident aggregate-id] projection-ident]
+(defn projection-path [aggregate-ident projection-ident aggregate-id]
   (str base-path
        "/" (filename aggregate-ident)
        "/" (filename projection-ident)
        "/" (filename aggregate-id)))
 
 
-(defn- pointer-file-path [aggregate projection-ident]
-  (str (projection-path aggregate projection-ident)
+(defn- pointer-file-path [aggregate-ident projection-ident aggregate-id]
+  (str (projection-path aggregate-ident projection-ident aggregate-id)
        "/latest-pointer.edn"))
 
 
 (defn read-projection [pointer-file]
-  (let [tx-id (read-string (slurp pointer-file))
-        projection-file-path (str (-> pointer-file .getParent)
-                                  "/" tx-id ".edn")]
-    (tap> [:dbg ::loading projection-file-path])
-    (read-string (slurp projection-file-path))))
+  (when (.exists pointer-file)
+    (let [tx-id (read-string (slurp pointer-file))
+          projection-file-path (str (-> pointer-file .getParent)
+                                    "/" tx-id ".edn")]
+      (tap> [:dbg ::loading projection-file-path])
+      (read-string (slurp projection-file-path)))))
+
+
+(defn- init-projection-agent [[aggregate-ident projection-ident aggregate-id]]
+  (let [path (projection-path aggregate-ident projection-ident aggregate-id)
+        pointer-file-path (pointer-file-path aggregate-ident projection-ident aggregate-id)
+        pointer-file (-> pointer-file-path java.io.File.)]
+    {:aggregate-ident aggregate-ident
+     :projection-ident projection-ident
+     :aggregate-id aggregate-id
+     :path path
+     :projection (read-projection pointer-file)}))
+
+
+(defonce workers-pool (utils/new-worker-agents-pool handle-error init-projection-agent))
+
+
+(def projection-agent (-> workers-pool :get-f))
 
 
 (defn write-projection [projection aggregate projection-ident]
-   (let [tx-id (-> projection :tx-id)
-         path (projection-path aggregate projection-ident)
-         projection-file-path (str path "/" tx-id ".edn")
-         pointer-file-path (pointer-file-path aggregate projection-ident)]
+  ;; (tap> [:!!! ::write-projection {:aggregate aggregate
+  ;;                                 :projection projection}])
+  (let [tx-id (-> projection :tx-id)
+        [aggregate-ident aggregate-id] aggregate
+        path (projection-path aggregate-ident projection-ident aggregate-id)
+        projection-file-path (str path "/" tx-id ".edn")
+        pointer-file-path (pointer-file-path aggregate-ident projection-ident aggregate-id)]
      (-> path java.io.File. .mkdirs)
      (spit projection-file-path (pr-str projection))
      (spit pointer-file-path (pr-str tx-id))))
 
 
 
-(defn- new-agent-value [aggregate projection-ident]
-  (let [path (projection-path aggregate projection-ident)
-        pointer-file-path (pointer-file-path aggregate projection-ident)
-        pointer-file (-> pointer-file-path java.io.File.)]
-    {:aggregate aggregate
-     :projection-ident projection-ident
-     :path path
-     :projection (when (.exists pointer-file) (read-projection pointer-file))}))
-
-
 (defn- -update-projection [aggregate projection-ident update-f ag]
-  (let [ag (or ag (new-agent-value aggregate projection-ident))
-        projection (-> ag :projection)
+  (let [projection (-> ag :projection)
         projection (update-f projection)]
     (write-projection projection aggregate projection-ident)
     (assoc ag :projection projection)))
 
 
 (defn update-projection [aggregate projection-ident update-f]
-  (let [[aggregate-ident aggregate-id] aggregate]
-    (send-off-to [aggregate-ident projection-ident aggregate-id]
-                 (partial -update-projection aggregate projection-ident update-f))))
+  (let [[aggregate-ident aggregate-id] aggregate
+        !ag (projection-agent [aggregate-ident projection-ident aggregate-id])]
+    (send-off !ag (partial -update-projection aggregate projection-ident update-f))))
+
+
+(defn projection [[aggregate-ident aggregate-id :as aggregate] projection-ident]
+  (let [!ag (projection-agent [aggregate-ident projection-ident aggregate-id])
+        !p (promise)]
+    (send-off !ag (fn [ag]
+                    (deliver !p ag)
+                    ag))
+    @!p))

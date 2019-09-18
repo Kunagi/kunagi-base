@@ -2,39 +2,49 @@
   (:require
    [kunagi-base.startup :refer [def-init-function]]
    [kunagi-base.appmodel :refer [def-module]]
-   [kunagi-base.event-sourcing.api :as es :refer [def-aggregator def-projector]]
+   [kunagi-base.event-sourcing.api :as es]
 
+   [kunagi-base.auth.p-oauth-users :as p-oauth-users]
    [kunagi-base.auth.p-oauth-userinfos :as p-oauth-userinfos]
-   [kunagi-base.auth.p-oauth-users :as p-oauth-users]))
+   [kunagi-base.auth.c-oauth-users :as c-oauth-users]))
 
-
-;;; oauth users for identification
 
 (def-module
   {:module/id ::auth
    :module/ident :auth})
 
 
-(def-aggregator
+;;; oauth users for identification
+
+
+(es/def-aggregator
   {:aggregator/id ::oauth-users
    :aggregator/ident :oauth-users})
 
 
-(def-projector
+(es/def-projector
   {:projector/id ::oauth-users
    :projector/ident :oauth-users
    :projector/aggregator [:aggregator/id ::oauth-users]
    :projector/apply-event-f p-oauth-users/apply-event})
 
 
+(es/def-command
+  {:command/id ::sign-in-with-oauth
+   :command/ident :auth/sign-in-with-oauth
+   :command/aggregator [:aggregator/id ::oauth-users]
+   :command/f c-oauth-users/sign-in})
+
+
 ;;; oauth userinfos
 
-(def-aggregator
+
+(es/def-aggregator
   {:aggregator/id ::oauth-userinfos
    :aggregator/ident :oauth-userinfos})
 
 
-(def-projector
+(es/def-projector
   {:projector/id ::oauth-userinfos
    :projector/ident :oauth-userinfos
    :projector/aggregator [:aggregator/id ::oauth-userinfos]

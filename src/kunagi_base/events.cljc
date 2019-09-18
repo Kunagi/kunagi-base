@@ -47,10 +47,11 @@
   (tap> [:dbg ::event event])
   (let [event-ident (first event)]
     (if-not (event-dispatch-permitted? event context)
-      (let [response-f (-> context :comm/response-f)]
-        (tap> [:inf ::event-dispatch-denied {:event event
-                                             :user (-> context :auth/user-id)}])
-        (response-f [:auth/server-event-not-permitted event]))
+      (do
+       (tap> [:inf ::event-dispatch-denied {:event event
+                                            :user (-> context :auth/user-id)}])
+       (if-let [response-f (-> context :comm/response-f)]
+         (response-f [:auth/server-event-not-permitted event])))
       (let [event-handlers (appmodel/q!
                             '[:find ?e
                               :in $ ?event-ident

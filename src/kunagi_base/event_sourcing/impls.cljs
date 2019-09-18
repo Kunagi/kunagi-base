@@ -8,6 +8,10 @@
   (aggregator/->RfAggregator (-> aggregator :aggregator/id)))
 
 
+(defn projection-from-context [context [aggregate-ident aggregate-id] projection-ident]
+  (-> context :db :event-sourcing/projections aggregate-ident projection-ident aggregate-id))
+
+
 (defn update-projection [aggregate projection-ident update-f]
   (rf/dispatch [::update-projection aggregate projection-ident update-f]))
 

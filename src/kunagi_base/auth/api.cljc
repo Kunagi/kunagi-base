@@ -25,6 +25,10 @@
   (-> context :auth/authorized?))
 
 
+(defn authorize-context [context]
+  (assoc context :auth/authorized? true))
+
+
 (defn context-has-permission?
   [context req-perm]
   (let [user-id (get context :auth/user-id)]

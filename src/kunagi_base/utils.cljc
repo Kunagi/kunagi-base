@@ -35,3 +35,39 @@
                     {:spec spec
                      :value value
                      :spec-explain (s/explain-str spec value)}))))
+
+
+(defn new-value-on-demand-map [init-value-f]
+  (let [!a (atom {})
+        get-f (fn [path]
+                (locking !a
+                  (if-let [v (get-in @!a path)]
+                    v
+                    (let [v (init-value-f path)]
+                      (swap! !a assoc-in path v)
+                      v))))]
+    {:map-atom !a
+     :get-f get-f}))
+
+
+
+#?(:clj
+   (defn new-worker-agent
+     [initial-value
+      auto-init-f
+      handle-error-f]
+     (let [!ag (agent initial-value
+                      :error-handler handle-error-f)]
+       (when auto-init-f (send-off !ag auto-init-f))
+       !ag)))
+
+
+#?(:clj
+   (defn new-worker-agents-pool [handle-error-f init-f]
+     (new-value-on-demand-map
+      (fn [path]
+        (new-worker-agent
+         nil
+         (fn [_]
+           (init-f path))
+         handle-error-f)))))
