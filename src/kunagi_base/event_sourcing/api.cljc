@@ -12,7 +12,10 @@
             :aggregator/id {:db/unique :db.unique/identity}
             :projector/module {:db/type :db.type/ref}
             :projector/id {:db/unique :db.unique/identity}
-            :projector/aggregator {:db/type :db.type/ref}}})
+            :projector/aggregator {:db/type :db.type/ref}
+            :command/module {:db/type :db.type/ref}
+            :command/id {:db/unique :db.unique/identity}
+            :command/aggregator {:db/type :db.type/ref}}})
 
 
 (defn def-aggregator [aggregator]
@@ -23,11 +26,7 @@
 
 
 (defn def-projector [projector]
-  (let [aggregator-id (-> projector :projector/aggregator-id)
-        aggregator-db-id (-> (am/entity! [:aggregator/id aggregator-id]) :db/id)
-        projector (assoc projector :projector/aggregator aggregator-db-id)]
-    ;;; (tap> [:!!! ::def-projector projector aggregator-id aggregator-db-id])
-    (am/register-entity :projector projector)))
+  (am/register-entity :projector projector))
 
 
 (defn- aggregate-ident->aggregator-id [aggregate-ident]

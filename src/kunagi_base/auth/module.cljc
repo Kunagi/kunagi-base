@@ -23,7 +23,7 @@
 (def-projector
   {:projector/id ::oauth-users
    :projector/ident :oauth-users
-   :projector/aggregator-id ::oauth-users
+   :projector/aggregator [:aggregator/id ::oauth-users]
    :projector/apply-event-f p-oauth-users/apply-event})
 
 
@@ -37,7 +37,7 @@
 (def-projector
   {:projector/id ::oauth-userinfos
    :projector/ident :oauth-userinfos
-   :projector/aggregator-id ::oauth-userinfos
+   :projector/aggregator [:aggregator/id ::oauth-userinfos]
    :projector/apply-event-f p-oauth-userinfos/apply-event})
 
 
