@@ -5,8 +5,9 @@
    [kunagi-base.event-sourcing.api :as es]
 
    [kunagi-base.auth.p-oauth-users :as p-oauth-users]
+   [kunagi-base.auth.c-oauth-users :as c-oauth-users]
    [kunagi-base.auth.p-oauth-userinfos :as p-oauth-userinfos]
-   [kunagi-base.auth.c-oauth-users :as c-oauth-users]))
+   [kunagi-base.auth.c-oauth-userinfos :as c-oauth-userinfos]))
 
 
 (def-module
@@ -49,6 +50,13 @@
    :projector/ident :oauth-userinfos
    :projector/aggregator [:aggregator/id ::oauth-userinfos]
    :projector/apply-event-f p-oauth-userinfos/apply-event})
+
+
+(es/def-command
+  {:command/id ::process-userinfo
+   :command/ident :auth/process-userinfo
+   :command/aggregator [:aggregator/id ::oauth-userinfos]
+   :command/f c-oauth-userinfos/process-userinfo})
 
 
 ;; (def-init-function

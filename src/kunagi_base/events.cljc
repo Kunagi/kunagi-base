@@ -31,7 +31,7 @@
     (f event context)))
 
 
-(defn event-dispatch-permitted? [event-v context]
+(defn- event-dispatch-permitted? [event-v context]
   (if (auth/context-authorized? context)
     true
     (let [event-ident (first event-v)
@@ -43,7 +43,7 @@
         (auth/context-has-permissions? context req-perms)))))
 
 
-(defn dispatch-event! [event context]
+(defn dispatch-event! [context event]
   (tap> [:dbg ::event event])
   (let [event-ident (first event)]
     (if-not (event-dispatch-permitted? event context)
