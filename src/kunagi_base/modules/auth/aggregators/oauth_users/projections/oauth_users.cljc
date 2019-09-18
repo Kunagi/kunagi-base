@@ -1,4 +1,4 @@
-(ns kunagi-base.auth.p-oauth-users)
+(ns kunagi-base.modules.auth.aggregators.oauth-users.projections.oauth-users)
 
 
 (defn- new-db []

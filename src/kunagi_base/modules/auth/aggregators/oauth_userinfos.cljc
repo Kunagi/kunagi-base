@@ -1,4 +1,4 @@
-(ns kunagi-base.auth.c-oauth-userinfos
+(ns kunagi-base.modules.auth.aggregators.oauth-userinfos
   (:require
    [kunagi-base.utils :as utils]))
 
