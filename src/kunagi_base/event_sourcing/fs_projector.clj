@@ -87,6 +87,6 @@
   (let [!ag (projection-agent [aggregate-ident projection-ident aggregate-id])
         !p (promise)]
     (send-off !ag (fn [ag]
-                    (deliver !p ag)
+                    (deliver !p (-> ag :projection))
                     ag))
     @!p))

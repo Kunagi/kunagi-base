@@ -6,10 +6,7 @@
 
 
 (defn- user-signed-up [db [_ {:keys [user-id oauth-id]}]]
-  (let [db (assoc-in db [:oauth->user oauth-id] user-id)]
-    (tap> [:!! ::user-signed-up db])
-    db))
-
+  (assoc-in db [:oauth->user oauth-id] user-id))
 
 
 (defn- unknown-event [db event]

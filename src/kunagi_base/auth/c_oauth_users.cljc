@@ -1,4 +1,6 @@
-(ns kunagi-base.auth.c-oauth-users)
+(ns kunagi-base.auth.c-oauth-users
+  (:require
+   [kunagi-base.utils :as utils]))
 
 
 (defn sign-in
@@ -12,7 +14,8 @@
         oauth-id [service sub]
         user-id (-> users-db :oauth->user (get oauth-id))]
     (if user-id
-      {:events [[:user-signed-in {:user-id user-id}]]}
-      (let [user-id "new-user-id"]
-        {:events [[:user-signed-up {:user-id user-id
-                                    :oauth-id oauth-id}]]}))))
+      {:action-f #(deliver user-id-promise user-id)}
+      (let [user-id (utils/new-uuid)]
+        {:events [[:user-signed-up {:user-id user-id :oauth-id oauth-id}]]
+         :action-f #?(:clj #(deliver user-id-promise user-id)
+                      :cljs nil)}))))

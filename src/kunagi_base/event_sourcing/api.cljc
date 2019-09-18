@@ -138,9 +138,12 @@
 
 
 (defn- projection-for-command [context aggregate projector]
-  (-> context
-      (impls/projection-from-context aggregate (-> projector :projector/ident))
-      :payload))
+  (let [projection (impls/projection-from-context
+                    context
+                    aggregate
+                    (-> projector :projector/ident))]
+    ;;(tap> [:!!! ::projection-> projection])
+    (-> projection :payload)))
 
 
 (defn- projections-for-command [context aggregate command]
@@ -158,7 +161,10 @@
         command-result (f command-v context)
         events (-> command-result :events)
         action-f (-> command-result :action-f)]
-    (aggregate-events aggregate events action-f)))
+    (if (empty? events)
+      (when action-f #?(:cljs (action-f)
+                        :clj (future (action-f))))
+      (aggregate-events aggregate events action-f))))
 
 
 (defn execute-command! [aggregate command-v context]
