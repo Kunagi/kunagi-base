@@ -16,7 +16,7 @@
                      (get sub))
         userinfo (-> old-info
                      (merge userinfo)
-                     (dissoc :aud :at_hash :exp :azp))]
+                     (dissoc :aud :at_hash :exp :azp :iat))]
     (if (= userinfo old-info)
       nil
       {:events [[:oauth-userinfo-received
