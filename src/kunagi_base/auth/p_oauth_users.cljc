@@ -2,11 +2,14 @@
 
 
 (defn- new-db []
-  {:oauth->user {}})
+  {:oauth->user {}
+   :user->oauth {}})
 
 
 (defn- user-signed-up [db [_ {:keys [user-id oauth-id]}]]
-  (assoc-in db [:oauth->user oauth-id] user-id))
+  (-> db
+      (assoc-in [:oauth->user oauth-id] user-id)
+      (assoc-in [:user->oauth user-id] oauth-id)))
 
 
 (defn- unknown-event [db event]
@@ -14,7 +17,6 @@
 
 
 (defn apply-event [db event]
-  (tap> [:!! ::event event db])
   (if-let [f (case (first event)
                :user-signed-up user-signed-up
                unknown-event)]

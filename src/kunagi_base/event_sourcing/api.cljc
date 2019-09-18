@@ -137,11 +137,12 @@
         (auth/context-has-permissions? context req-perms)))))
 
 
-(defn- projection-for-command [context aggregate projector]
+(defn projection [context aggregate projection-ident]
   (let [projection (impls/projection-from-context
                     context
                     aggregate
-                    (-> projector :projector/ident))]
+                    projection-ident)]
+
     ;;(tap> [:!!! ::projection-> projection])
     (-> projection :payload)))
 
@@ -149,7 +150,11 @@
 (defn- projections-for-command [context aggregate command]
   (let [projectors (-> command :command/aggregator :projector/_aggregator)]
     (reduce
-     #(assoc %1 (-> %2 :projector/ident) (projection-for-command context aggregate %2))
+     (fn [ret projector]
+       (let [projector-ident (-> projector :projector/ident)]
+         (assoc ret
+                projector-ident
+                (projection context aggregate projector-ident))))
      {}
      projectors)))
 

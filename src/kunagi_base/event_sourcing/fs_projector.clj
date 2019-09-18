@@ -36,6 +36,7 @@
           projection-file-path (str (-> pointer-file .getParent)
                                     "/" tx-id ".edn")]
       (tap> [:dbg ::loading projection-file-path])
+      ;;(tap> [:!!! ::read-projection-> (read-string (slurp projection-file-path))])
       (read-string (slurp projection-file-path)))))
 
 
@@ -69,6 +70,11 @@
      (spit pointer-file-path (pr-str tx-id))))
 
 
+(defn projection [[aggregate-ident aggregate-id] projection-ident]
+  (let [!ag (projection-agent [aggregate-ident projection-ident aggregate-id])]
+    (await-for 3000 !ag)
+    (-> @!ag :projection)))
+
 
 (defn- -update-projection [aggregate projection-ident update-f ag]
   (let [projection (-> ag :projection)
@@ -81,12 +87,3 @@
   (let [[aggregate-ident aggregate-id] aggregate
         !ag (projection-agent [aggregate-ident projection-ident aggregate-id])]
     (send-off !ag (partial -update-projection aggregate projection-ident update-f))))
-
-
-(defn projection [[aggregate-ident aggregate-id :as aggregate] projection-ident]
-  (let [!ag (projection-agent [aggregate-ident projection-ident aggregate-id])
-        !p (promise)]
-    (send-off !ag (fn [ag]
-                    (deliver !p (-> ag :projection))
-                    ag))
-    @!p))

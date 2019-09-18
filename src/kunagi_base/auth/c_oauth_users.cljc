@@ -8,7 +8,7 @@
                                      userinfo
                                      user-id-promise]}]
    context]
-  (tap> [:!!! ::sign-in-with-oauth service userinfo (-> context :projections)])
+  ;;(tap> [:!!! ::sign-in-with-oauth service userinfo (-> context :projections)])
   (let [users-db (-> context :projections :oauth-users)
         sub (-> userinfo :sub)
         oauth-id [service sub]
