@@ -4,13 +4,14 @@
    [re-frame.core :as rf]
    [kunagi-base.appmodel :as appmodel]))
 
+;; TODO move to kunagi-base-browserapp
 
 (defn default-load-f [db asset-pool asset-path]
   (let [asset-pool-id (:db/id asset-pool)
         asset-pool-ident (:asset-pool/ident asset-pool)
         module-ident (-> asset-pool :asset-pool/module :module/ident)
         path [module-ident asset-pool-ident asset-path]]
-    (rf/dispatch [:http-async/send-event [:assets/asset-requested path]])
+    (rf/dispatch [:comm-async/send-event [:assets/asset-requested path]])
     nil))
 
 
