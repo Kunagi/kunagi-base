@@ -1,7 +1,8 @@
 (ns kunagi-base.utils
   (:refer-clojure :exclude [assert])
   (:require
-   [clojure.spec.alpha :as s]))
+   [clojure.spec.alpha :as s]
+   [bindscript.api :refer [def-bindscript]]))
 
 
 (defn new-uuid []
@@ -12,6 +13,10 @@
 (defn current-time-millis []
   #?(:cljs (.getTime (js/Date.))
      :clj  (System/currentTimeMillis)))
+
+
+;;; assertions
+
 
 (defmacro assert
   "Check if the given form is truthy, otherwise throw an exception with
@@ -37,6 +42,65 @@
                      :spec-explain (s/explain-str spec value)}))))
 
 
+;;; spec
+
+(defn- assert-entity-attribute-conforms-to-spec
+  [msg entity [k spec]]
+  (let [v (get entity k)]
+    (if (s/valid? spec v)
+      entity
+      (throw (ex-info (str (when msg (str msg " "))
+                           "Entity attribute "
+                           (pr-str k) " = " (pr-str v)
+                           " does not conform to spec " (pr-str  spec) ".")
+                      {:entity entity
+                       :k k
+                       :spec spec
+                       :explain-str (s/explain-str spec v)})))))
+
+
+(defn assert-entity
+  ([entity spec]
+   (assert-entity entity spec nil))
+  ([entity spec error-message-prefix]
+   (let [req-keys (-> spec :req)
+         opt-keys (-> spec :opt)]
+     (reduce
+      (partial
+       assert-entity-attribute-conforms-to-spec
+       error-message-prefix)
+      entity
+      req-keys)
+     (reduce
+      (fn [entity [k spec :as attr]]
+        (if (contains? entity k)
+          (assert-entity-attribute-conforms-to-spec
+           error-message-prefix entity attr)
+          entity))
+      entity
+      opt-keys))
+   entity))
+
+
+(def-bindscript
+  ::assert-entity
+  rick {:name "Rick"
+        :age 68}
+  _ (assert-entity rick
+                   {:req {:name string?
+                          :age int?}
+                    :opt {:language string?}})
+  _ (assert-entity rick
+                   {:req {:size number?}})
+  _ (assert-entity rick
+                   {:req {:name int?}}
+                   "Invalid person."))
+
+
+
+;;;
+
+
 (defn new-value-on-demand-map [init-value-f]
   (let [!a (atom {})
         get-f (fn [path]
@@ -49,6 +113,8 @@
     {:map-atom !a
      :get-f get-f}))
 
+
+;;; worker agents
 
 
 #?(:clj

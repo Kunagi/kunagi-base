@@ -2,18 +2,23 @@
   (:require
    [re-frame.core :as rf]
    [facts-db.api :as db]
+   [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
-   [kunagi-base.appmodel :as appmodel :refer [def-module]]
+   [kunagi-base.appmodel :as am :refer [def-module]]
    [kunagi-base.events :refer [def-event def-event-handler]]
    [kunagi-base.assets.loader :as loader]))
 
 
-(appmodel/def-extension
+(am/def-extension
   {:schema {:asset-pool/module {:db/type :db.type/ref}}})
 
 
 (defn def-asset-pool [asset-pool]
-  (appmodel/register-entity
+  (utils/assert-entity
+   asset-pool
+   {:req {:asset-pool/module ::am/entity-ref}}
+   (str "Invalid asset-pool " (-> asset-pool :asset-pool/id) "."))
+  (am/register-entity
    :asset-pool
    asset-pool))
 
@@ -44,7 +49,7 @@
 
 (defn- asset-pool-id [[module-ident asset-pool-ident]]
   (first
-   (appmodel/q!
+   (am/q!
     '[:find [?a]
       :in $ ?module-ident ?asset-pool-ident
       :where
@@ -57,7 +62,7 @@
 (defn asset-for-output [path context]
   (let [[module-ident asset-pool-ident asset-path] path
         asset-pool-id (asset-pool-id path)
-        asset-pool (appmodel/entity! asset-pool-id)
+        asset-pool (am/entity! asset-pool-id)
         req-perms (-> asset-pool :asset-pool/req-perms)]
     (if-not (auth/context-has-permissions? context req-perms)
       :auth/not-permitted
@@ -78,7 +83,7 @@
 
 (defn- load-assets-from-pool
   [app-db [asset-pool-id]]
-  (let [asset-pool (appmodel/entity! asset-pool-id)
+  (let [asset-pool (am/entity! asset-pool-id)
         assets-paths (:asset-pool/load-on-startup asset-pool)]
     (reduce (partial load-asset-and-store asset-pool) app-db assets-paths)))
 
@@ -86,9 +91,9 @@
 (defn load-startup-assets [app-db]
   (reduce load-assets-from-pool
           app-db
-          (appmodel/q! '[:find ?e ?asset-paths
-                         :where
-                         [?e :asset-pool/load-on-startup ?asset-paths]])))
+          (am/q! '[:find ?e ?asset-paths
+                   :where
+                   [?e :asset-pool/load-on-startup ?asset-paths]])))
 
 
 (defn on-asset-requested [[_ path] context]
@@ -106,10 +111,12 @@
 (def-event
   {:event/id ::asset-requested
    :event/ident :assets/asset-requested
+   :event/module [:module/ident :assets]
    :event/req-perms [:assets/read]})
 
 
 (def-event-handler
   {:event-handler/id ::asset-requested
+   :event-handler/module [:module/ident :assets]
    :event-handler/event-ident :assets/asset-requested
    :event-handler/f on-asset-requested})

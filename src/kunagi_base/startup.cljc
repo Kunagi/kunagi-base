@@ -3,13 +3,19 @@
    #?(:cljs [cljs.reader :refer [read-string]])
    [re-frame.core :as rf]
 
+   [kunagi-base.utils :as utils]
    [kunagi-base.context :as context]
    [kunagi-base.assets :as assets]
-   [kunagi-base.appmodel :as appmodel]))
+   [kunagi-base.appmodel :as am]))
 
 
 (defn def-init-function [init-function]
-  (appmodel/register-entity
+  (utils/assert-entity
+   init-function
+   {:req {:init-function/module ::am/entity-ref}}
+   (str "Invalid init-function " (-> init-function :init-function/id) "."))
+
+  (am/register-entity
    :init-function
    init-function))
 
@@ -25,10 +31,10 @@
   (reduce
    exec-init-function
    app-db
-   (appmodel/q! '[:find ?id ?f
-                  :where
-                  [?e :init-function/id ?id]
-                  [?e :init-function/f ?f]])))
+   (am/q! '[:find ?id ?f
+            :where
+            [?e :init-function/id ?id]
+            [?e :init-function/f ?f]])))
 
 
 (defn- -init-app-db [app-db initial-data]

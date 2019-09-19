@@ -1,8 +1,9 @@
 (ns kunagi-base.events
   (:require
+   [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.context :as context]
-   [kunagi-base.appmodel :as appmodel :refer [def-extension]]))
+   [kunagi-base.appmodel :as am :refer [def-extension]]))
 
 
 (def-extension
@@ -12,13 +13,23 @@
 
 
 (defn def-event-handler [event-handler]
-  (appmodel/register-entity
+  (utils/assert-entity
+   event-handler
+   {:req {:event-handler/module ::am/entity-ref}}
+   (str "Invalid event-handler " (-> event-handler :event-handler/id) "."))
+
+  (am/register-entity
    :event-handler
    event-handler))
 
 
 (defn def-event [event]
-  (appmodel/register-entity
+  (utils/assert-entity
+   event
+   {:req {:event/module ::am/entity-ref}}
+   (str "Invalid event " (-> event :event/id) "."))
+
+  (am/register-entity
    :event
    event))
 
@@ -26,7 +37,7 @@
 (defn- handler-handle-event [context event [event-handler-id]]
   (tap> [:dbg ::handle-event {:event event
                               :handler event-handler-id}])
-  (let [event-handler (appmodel/entity! event-handler-id)
+  (let [event-handler (am/entity! event-handler-id)
         f (-> event-handler :event-handler/f)]
     (f event context)))
 
@@ -35,7 +46,7 @@
   (if (auth/context-authorized? context)
     true
     (let [event-ident (first event-v)
-          event (appmodel/entity! [:event/ident event-ident])
+          event (am/entity! [:event/ident event-ident])
           req-perms (-> event :event/req-perms)]
       ;; (tap> [:!!! ::event event-v event req-perms])
       (if (nil? req-perms)
@@ -52,7 +63,7 @@
                                             :user (-> context :auth/user-id)}])
        (if-let [response-f (-> context :comm/response-f)]
          (response-f [:auth/server-event-not-permitted event])))
-      (let [event-handlers (appmodel/q!
+      (let [event-handlers (am/q!
                             '[:find ?e
                               :in $ ?event-ident
                               :where

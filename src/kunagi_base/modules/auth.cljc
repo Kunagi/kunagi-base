@@ -15,25 +15,27 @@
 
 
 (def-module
-  {:module/id ::auth
-   :module/ident :auth})
+  {:module/id ::auth})
 
 
 ;;; oauth users for identification
 
 (es/def-aggregator
   {:aggregator/id ::oauth-users
-   :aggregator/ident :oauth-users})
+   :aggregator/ident :oauth-users
+   :aggregator/module [:module/ident :auth]})
 
 (es/def-command
   {:command/id ::sign-in-with-oauth
    :command/ident :auth/sign-in-with-oauth
+   :command/module [:module/ident :auth]
    :command/aggregator [:aggregator/id ::oauth-users]
    :command/f c-oauth-users/sign-in})
 
 (es/def-projector
   {:projector/id ::oauth-users
    :projector/ident :oauth-users
+   :projector/module [:module/ident :auth]
    :projector/aggregator [:aggregator/id ::oauth-users]
    :projector/apply-event-f p-oauth-users/apply-event})
 
@@ -42,26 +44,31 @@
 
 (es/def-aggregator
   {:aggregator/id ::oauth-userinfos
-   :aggregator/ident :oauth-userinfos})
+   :aggregator/ident :oauth-userinfos
+   :aggregator/module [:module/ident :auth]})
 
 (es/def-command
   {:command/id ::process-userinfo
    :command/ident :auth/process-userinfo
+   :command/module [:module/ident :auth]
    :command/aggregator [:aggregator/id ::oauth-userinfos]
    :command/f c-oauth-userinfos/process-userinfo})
 
 (es/def-projector
   {:projector/id ::oauth-userinfos
    :projector/ident :oauth-userinfos
+   :projector/module [:module/ident :auth]
    :projector/aggregator [:aggregator/id ::oauth-userinfos]
    :projector/apply-event-f p-oauth-userinfos/apply-event})
 
 
 ;;; permissions
 
-;; (es/def-aggregator
-;;   {:aggregator/id ::users-perms
-;;    :aggregator/ident :users-perms})
+(es/def-aggregator
+  {:aggregator/id ::users-perms
+   :aggregator/ident :users-perms
+   :aggregator/module [:module/ident :auth]})
+
 
 ;; (es/def-command
 ;;   {:command/id ::users-perms

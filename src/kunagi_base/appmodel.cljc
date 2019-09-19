@@ -75,6 +75,7 @@
 
 
 (defn update-facts [facts]
+  ;; (tap> [:!!! ::update-facts facts])
   (try
     (swap! !db d/db-with facts)
     (catch #?(:clj Exception :cljs :default) ex
@@ -85,23 +86,33 @@
 
 
 (s/def ::entity-id qualified-keyword?)
+(s/def ::entity-ident simple-keyword?)
+(s/def ::db-id int?)
+(s/def ::entity-attr-k qualified-keyword?)
+(s/def ::entity-lookup-ref (s/cat :k ::entity-attr-k
+                                  :v (s/or :id ::entity-id
+                                           :ident ::entity-ident)))
+(s/def ::entity-ref (s/or :id ::db-id
+                          :lookup-ref ::entity-lookup-ref))
 
 (defn register-entity
-  [type entity]
-  (tap> [:dbg ::register entity])
-  (let [db @!db
-        id-key (keyword (name type) "id")
-        entity-id (get entity id-key)
-        _ (utils/assert-spec ::entity-id
-                             entity-id
-                             (str "Invalid " id-key " passed to register-entity."))
-        module-namespace (namespace entity-id)
-        entity (assoc entity :entity/type type)
-        entity (assoc entity
-                      (keyword (name type) "module")
-                      [:module/namespace module-namespace])]
-    (update-facts
-     [entity])))
+  ([type entity]
+   (register-entity type entity {}))
+  ([type entity options]
+   (tap> [:dbg ::register entity])
+   (utils/assert-entity
+    entity
+    {:req {(keyword (name type) "module") ::entity-ref}}
+    (str "Invalid entity: " (pr-str entity) "."))
+   (let [db @!db
+         id-key (keyword (name type) "id")
+         entity-id (get entity id-key)
+         _ (utils/assert-spec ::entity-id
+                              entity-id
+                              (str "Invalid " id-key " passed to register-entity."))
+         entity (assoc entity :entity/type type)]
+     (update-facts
+      [entity]))))
 
 
 (s/def ::module-id qualified-keyword?)

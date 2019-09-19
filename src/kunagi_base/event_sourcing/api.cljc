@@ -1,5 +1,7 @@
 (ns kunagi-base.event-sourcing.api
   (:require
+   [clojure.spec.alpha :as s]
+
    [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am]
    [kunagi-base.auth.api :as auth]
@@ -26,6 +28,10 @@
 
 
 (defn def-aggregator [aggregator]
+  (utils/assert-entity
+   aggregator
+   {:req {:aggregator/module ::am/entity-ref}}
+   (str "Invalid aggregator " (-> aggregator :aggregator/id) "."))
   (am/register-entity
    :aggregator
    (-> aggregator
@@ -33,10 +39,22 @@
 
 
 (defn def-projector [projector]
-  (am/register-entity :projector projector))
+  (utils/assert-entity
+   projector
+   {:req {:projector/aggregator ::am/entity-ref
+          :projector/module ::am/entity-ref}}
+   (str "Invalid projector " (-> projector :projector/id) "."))
+  (am/register-entity
+   :projector
+   projector))
 
 
 (defn def-command [command]
+  (utils/assert-entity
+   command
+   {:req {:command/aggregator ::am/entity-ref
+          :command/module ::am/entity-ref}}
+   (str "Invalid command " (-> command :projector/id) "."))
   (am/register-entity :command command))
 
 
@@ -193,5 +211,6 @@
 
 (ev/def-event-handler
   {:event-handler/id ::command
+   :event-handler/module [:module/ident :event-sourcing]
    :event-handler/event-ident :kunagi-base/command-triggered
    :event-handler/f on-command-triggered})
