@@ -1,4 +1,4 @@
-(ns kunagi-base.startup
+(ns kunagi-base.modules.startup.api
   (:require
    #?(:cljs [cljs.reader :refer [read-string]])
    [re-frame.core :as rf]
@@ -7,17 +7,6 @@
    [kunagi-base.context :as context]
    [kunagi-base.assets :as assets]
    [kunagi-base.appmodel :as am]))
-
-
-(defn def-init-function [init-function]
-  (utils/assert-entity
-   init-function
-   {:req {:init-function/module ::am/entity-ref}}
-   (str "Invalid init-function " (-> init-function :init-function/id) "."))
-
-  (am/register-entity
-   :init-function
-   init-function))
 
 
 (defn- exec-init-function [app-db [id f]]

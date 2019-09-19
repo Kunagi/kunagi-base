@@ -1,37 +1,9 @@
-(ns kunagi-base.events
+(ns kunagi-base.modules.events.api
   (:require
    [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.context :as context]
    [kunagi-base.appmodel :as am :refer [def-extension]]))
-
-
-(def-extension
-  {:schema {:event-handler/module {:db/type :db.type/ref}
-            :event/module {:db/type :db.type/ref}
-            :event/ident {:db/unique :db.unique/identity}}})
-
-
-(defn def-event-handler [event-handler]
-  (utils/assert-entity
-   event-handler
-   {:req {:event-handler/module ::am/entity-ref}}
-   (str "Invalid event-handler " (-> event-handler :event-handler/id) "."))
-
-  (am/register-entity
-   :event-handler
-   event-handler))
-
-
-(defn def-event [event]
-  (utils/assert-entity
-   event
-   {:req {:event/module ::am/entity-ref}}
-   (str "Invalid event " (-> event :event/id) "."))
-
-  (am/register-entity
-   :event
-   event))
 
 
 (defn- handler-handle-event [context event [event-handler-id]]

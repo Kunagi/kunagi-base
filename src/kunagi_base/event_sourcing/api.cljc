@@ -5,26 +5,11 @@
    [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am]
    [kunagi-base.auth.api :as auth]
-   [kunagi-base.events :as ev]
    [kunagi-base.event-sourcing.projection :as projection]
    [kunagi-base.event-sourcing.aggregator :as aggregator]
    [kunagi-base.event-sourcing.impls :as impls]))
 
 
-(am/def-module
-  {:module/id ::event-sourcing})
-
-
-(am/def-extension
-  {:schema {:aggregator/module {:db/type :db.type/ref}
-            :aggregator/id {:db/unique :db.unique/identity}
-            :projector/module {:db/type :db.type/ref}
-            :projector/id {:db/unique :db.unique/identity}
-            :projector/aggregator {:db/type :db.type/ref}
-            :command/module {:db/type :db.type/ref}
-            :command/id {:db/unique :db.unique/identity}
-            :command/ident {:db/unique :db.unique/identity}
-            :command/aggregator {:db/type :db.type/ref}}})
 
 
 (defn def-aggregator [aggregator]
@@ -209,8 +194,3 @@
   (execute-command! aggregate command context))
 
 
-(ev/def-event-handler
-  {:event-handler/id ::command
-   :event-handler/module [:module/ident :event-sourcing]
-   :event-handler/event-ident :kunagi-base/command-triggered
-   :event-handler/f on-command-triggered})

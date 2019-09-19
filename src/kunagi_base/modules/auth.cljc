@@ -1,8 +1,9 @@
 (ns kunagi-base.modules.auth
   (:require
-   [kunagi-base.startup :refer [def-init-function]]
+   [kunagi-base.modules.event-sourcing]
+
    [kunagi-base.appmodel :refer [def-module]]
-   [kunagi-base.event-sourcing.api :as es]
+   [kunagi-base.event-sourcing.api :as es :refer [def-aggregator def-command def-projector]]
 
    [kunagi-base.modules.auth.aggregators.oauth-users.projections.oauth-users :as p-oauth-users]
    [kunagi-base.modules.auth.aggregators.oauth-users :as c-oauth-users]
@@ -20,19 +21,19 @@
 
 ;;; oauth users for identification
 
-(es/def-aggregator
+(def-aggregator
   {:aggregator/id ::oauth-users
    :aggregator/ident :oauth-users
    :aggregator/module [:module/ident :auth]})
 
-(es/def-command
+(def-command
   {:command/id ::sign-in-with-oauth
    :command/ident :auth/sign-in-with-oauth
    :command/module [:module/ident :auth]
    :command/aggregator [:aggregator/id ::oauth-users]
    :command/f c-oauth-users/sign-in})
 
-(es/def-projector
+(def-projector
   {:projector/id ::oauth-users
    :projector/ident :oauth-users
    :projector/module [:module/ident :auth]
@@ -42,19 +43,19 @@
 
 ;;; oauth userinfos
 
-(es/def-aggregator
+(def-aggregator
   {:aggregator/id ::oauth-userinfos
    :aggregator/ident :oauth-userinfos
    :aggregator/module [:module/ident :auth]})
 
-(es/def-command
+(def-command
   {:command/id ::process-userinfo
    :command/ident :auth/process-userinfo
    :command/module [:module/ident :auth]
    :command/aggregator [:aggregator/id ::oauth-userinfos]
    :command/f c-oauth-userinfos/process-userinfo})
 
-(es/def-projector
+(def-projector
   {:projector/id ::oauth-userinfos
    :projector/ident :oauth-userinfos
    :projector/module [:module/ident :auth]
@@ -64,19 +65,19 @@
 
 ;;; permissions
 
-(es/def-aggregator
+(def-aggregator
   {:aggregator/id ::users-perms
    :aggregator/ident :users-perms
    :aggregator/module [:module/ident :auth]})
 
 
-;; (es/def-command
+;; (def-command
 ;;   {:command/id ::users-perms
 ;;    :command/ident :auth/users-perms
 ;;    :command/aggregator [:aggregator/id ::users-perms]
 ;;    :command/f c-users-perms/update-users-permissions})
 
-;; (es/def-projector
+;; (def-projector
 ;;   {:projector/id ::users-perms
 ;;    :projector/ident :users-perms
 ;;    :projector/aggregator [:aggregator/id ::users-perms]

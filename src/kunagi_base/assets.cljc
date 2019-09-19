@@ -5,22 +5,11 @@
    [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.appmodel :as am :refer [def-module]]
-   [kunagi-base.events :refer [def-event def-event-handler]]
    [kunagi-base.assets.loader :as loader]))
 
 
-(am/def-extension
-  {:schema {:asset-pool/module {:db/type :db.type/ref}}})
 
 
-(defn def-asset-pool [asset-pool]
-  (utils/assert-entity
-   asset-pool
-   {:req {:asset-pool/module ::am/entity-ref}}
-   (str "Invalid asset-pool " (-> asset-pool :asset-pool/id) "."))
-  (am/register-entity
-   :asset-pool
-   asset-pool))
 
 
 (rf/reg-sub
@@ -104,19 +93,3 @@
                                          :data asset}])))
 
 
-(def-module
-  {:module/id ::assets})
-
-
-(def-event
-  {:event/id ::asset-requested
-   :event/ident :assets/asset-requested
-   :event/module [:module/ident :assets]
-   :event/req-perms [:assets/read]})
-
-
-(def-event-handler
-  {:event-handler/id ::asset-requested
-   :event-handler/module [:module/ident :assets]
-   :event-handler/event-ident :assets/asset-requested
-   :event-handler/f on-asset-requested})
