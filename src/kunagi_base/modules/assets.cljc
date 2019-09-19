@@ -1,7 +1,8 @@
 (ns kunagi-base.modules.assets
   (:require
+   [clojure.spec.alpha :as s]
    [kunagi-base.utils :as utils]
-   [kunagi-base.appmodel :as am :refer [def-module def-extension]]
+   [kunagi-base.appmodel :as am :refer [def-module def-entity-model def-extension]]
    [kunagi-base.modules.events :refer [def-event def-event-handler]]
    [kunagi-base.assets :as assets]))
 
@@ -10,18 +11,20 @@
   {:module/id ::assets})
 
 
-(def-extension
-  {:schema {:asset-pool/module {:db/type :db.type/ref}}})
+(def-entity-model
+  :assets ::asset-pool
+  {:asset-pool/ident {:req? true
+                      :unique-identity? true
+                      :spec keyword?}
+   :asset-pool/req-perms {:spec (s/coll-of qualified-keyword?)}
+   :asset-pool/load-f {:req? true
+                       :spec fn?}
+   :asset-pool/dir-path {:spec string?}
+   :asset-pool/git-repo? {:spec boolean?}})
 
 
 (defn def-asset-pool [asset-pool]
-  (utils/assert-entity
-   asset-pool
-   {:req {:asset-pool/module ::am/entity-ref}}
-   (str "Invalid asset-pool " (-> asset-pool :asset-pool/id) "."))
-  (am/register-entity
-   :asset-pool
-   asset-pool))
+  (am/register-entity :asset-pool asset-pool))
 
 
 (def-event

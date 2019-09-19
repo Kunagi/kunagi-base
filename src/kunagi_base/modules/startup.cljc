@@ -1,23 +1,18 @@
 (ns kunagi-base.modules.startup
   (:require
+   [clojure.spec.alpha :as s]
    [kunagi-base.utils :as utils]
-   [kunagi-base.appmodel :as am :refer [def-module def-extension]]))
+   [kunagi-base.appmodel :as am :refer [def-module def-entity-model]]))
 
 
 (def-module
   {:module/id ::startup})
 
 
-(def-extension
-  {:schema {:init-function/module {:db/type :db.type/ref}}})
+(def-entity-model
+  :startup ::init-function
+  {:init-function/f {:req? true :spec fn?}})
 
 
 (defn def-init-function [init-function]
-  (utils/assert-entity
-   init-function
-   {:req {:init-function/module ::am/entity-ref}}
-   (str "Invalid init-function " (-> init-function :init-function/id) "."))
-
-  (am/register-entity
-   :init-function
-   init-function))
+  (am/register-entity :init-function init-function))
