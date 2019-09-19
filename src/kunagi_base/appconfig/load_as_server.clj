@@ -4,7 +4,7 @@
    [kunagi-base.appconfig.file-loader :as file-loader]))
 
 
-(defn- load-file [config-name]
+(defn- load-config-file [config-name]
   (let [home-path (System/getProperty "user.home")
         app-name (-> home-path (java.io.File.) .getName)]
     (file-loader/load-first-existing-file
@@ -15,6 +15,6 @@
 
 (defonce load-once!
   (do
-    (appconfig-api/set-config! (load-file "config"))
-    (appconfig-api/set-secrets! (load-file "secrets"))
+    (appconfig-api/set-config! (load-config-file "config"))
+    (appconfig-api/set-secrets! (load-config-file "secrets"))
     :done))

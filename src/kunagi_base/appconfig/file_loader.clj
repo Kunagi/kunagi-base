@@ -3,7 +3,7 @@
    [clojure.java.io :as io]))
 
 
-(defn load-file [file]
+(defn load-edn-file [file]
   (let [file (io/as-file file)]
     (if-not (.exists file)
       nil
@@ -18,6 +18,6 @@
    (fn [prev-result file]
      (if prev-result
        prev-result
-       (load-file file)))
+       (load-edn-file file)))
    nil
    files))
