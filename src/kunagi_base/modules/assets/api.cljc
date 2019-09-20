@@ -1,15 +1,11 @@
-(ns kunagi-base.assets
+(ns kunagi-base.modules.assets.api
   (:require
    [re-frame.core :as rf]
    [facts-db.api :as db]
    [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.appmodel :as am :refer [def-module]]
-   [kunagi-base.assets.loader :as loader]))
-
-
-
-
+   [kunagi-base.modules.assets.loader :as loader]))
 
 
 (rf/reg-sub
@@ -91,5 +87,3 @@
         response-f (-> context :comm/response-f)]
     (response-f [:assets/asset-received {:path path
                                          :data asset}])))
-
-

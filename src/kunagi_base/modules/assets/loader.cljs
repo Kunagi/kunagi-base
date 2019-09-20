@@ -1,4 +1,4 @@
-(ns kunagi-base.assets.loader
+(ns kunagi-base.modules.assets.loader
   (:require
    [cljs.reader :as reader]
    [re-frame.core :as rf]

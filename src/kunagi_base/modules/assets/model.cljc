@@ -1,10 +1,10 @@
-(ns kunagi-base.modules.assets
+(ns kunagi-base.modules.assets.model
   (:require
    [clojure.spec.alpha :as s]
    [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am :refer [def-module def-entity-model]]
-   [kunagi-base.modules.events :refer [def-event def-event-handler]]
-   [kunagi-base.assets :as assets]))
+   [kunagi-base.modules.events.model :refer [def-event def-event-handler]]
+   [kunagi-base.modules.assets.api :as impl]))
 
 
 (def-module
@@ -27,7 +27,7 @@
 
 (def-event
   {:event/id ::asset-requested
-   ;; :event/ident :assets/asset-requested
+   :event/ident :assets/asset-requested
    :event/module [:module/ident :assets]
    :event/req-perms [:assets/read]})
 
@@ -36,4 +36,4 @@
   {:event-handler/id ::asset-requested
    :event-handler/module [:module/ident :assets]
    :event-handler/event-ident :assets/asset-requested
-   :event-handler/f assets/on-asset-requested})
+   :event-handler/f impl/on-asset-requested})

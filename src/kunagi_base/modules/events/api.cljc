@@ -31,8 +31,11 @@
   (let [event-ident (first event)]
     (if-not (event-dispatch-permitted? event context)
       (do
-       (tap> [:inf ::event-dispatch-denied {:event event
-                                            :user (-> context :auth/user-id)}])
+        (tap> [:wrn ::event-dispatch-denied
+               {:event event
+                :req-perms (-> (am/entity! [:event/ident event-ident]) :event/req-perms)
+                :user (-> context :auth/user-id)
+                :user-perms (-> context :auth/user-perms)}])
        (if-let [response-f (-> context :comm/response-f)]
          (response-f [:auth/server-event-not-permitted event])))
       (let [event-handlers (am/q!

@@ -1,4 +1,4 @@
-(ns kunagi-base.modules.events
+(ns kunagi-base.modules.events.model
   (:require
    [clojure.spec.alpha :as s]
    [kunagi-base.appmodel :as am :refer [def-module def-entity-model]]

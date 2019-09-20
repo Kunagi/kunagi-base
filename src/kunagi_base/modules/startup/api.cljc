@@ -5,8 +5,9 @@
 
    [kunagi-base.utils :as utils]
    [kunagi-base.context :as context]
-   [kunagi-base.assets :as assets]
-   [kunagi-base.appmodel :as am]))
+   [kunagi-base.appmodel :as am]
+   [kunagi-base.modules.assets.api :as assets]))
+
 
 
 (defn- exec-init-function [app-db [id f]]

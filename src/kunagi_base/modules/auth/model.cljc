@@ -1,4 +1,4 @@
-(ns kunagi-base.modules.auth
+(ns kunagi-base.modules.auth.model
   (:require
    [kunagi-base.modules.event-sourcing]
 

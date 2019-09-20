@@ -1,4 +1,4 @@
-(ns kunagi-base.modules.startup
+(ns kunagi-base.modules.startup.model
   (:require
    [clojure.spec.alpha :as s]
    [kunagi-base.utils :as utils]

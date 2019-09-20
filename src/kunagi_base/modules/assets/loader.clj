@@ -1,4 +1,4 @@
-(ns kunagi-base.assets.loader
+(ns kunagi-base.modules.assets.loader
   (:require
    [clojure.edn :as edn]
    [clojure.java.shell :as shell]))
