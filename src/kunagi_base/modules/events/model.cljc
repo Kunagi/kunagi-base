@@ -27,8 +27,7 @@
 
 (def-entity-model
   :events ::event-handler
-  {:event-handler/ident {:uid? true :spec simple-keyword?}
-   :event-handler/event-ident {:req? true :spec qualified-keyword?}
+  {:event-handler/event-ident {:req? true :spec qualified-keyword?}
    :event-handler/f {:req? true :spec fn?}})
 
 

@@ -7,6 +7,15 @@
    [kunagi-base.utils :as utils]))
 
 
+(s/def ::entity-ident simple-keyword?)
+(s/def ::db-id int?)
+(s/def ::entity-attr-k qualified-keyword?)
+(s/def ::entity-lookup-ref (s/cat :k ::entity-attr-k
+                                  :v (s/or :id ::entity-id
+                                           :ident ::entity-ident)))
+(s/def ::entity-ref (s/or :id ::db-id
+                          :lookup-ref ::entity-lookup-ref))
+
 ;;FIXME update entities instead of inserting
 
 
@@ -140,43 +149,53 @@
      [entity-model])))
 
 
+(defn- entity-id [entity]
+  (-> entity
+      (get (keyword (name (-> entity :entity/type))
+                    "id"))))
+
+
 (defn- assert-attr-by-model [entity k attr-model]
   (when-not (or (= :entity/type k)
                 (#{:id :module} (keyword (name k))))
     (if attr-model
-      (if-let [spec (-> attr-model :spec)]
+      (if-let [spec (or (-> attr-model :spec)
+                        (when (-> attr-model :ref?)
+                          ::ref ::entity-lookup-ref))]
         (utils/assert-spec
          spec (-> entity k)
          (str "Invalid attribute "
               (pr-str k) " = " (pr-str (-> entity k))
               " in entity definition "
-              (pr-str (-> entity (get (keyword (name (-> entity :entity/type)) "id"))))
+              (pr-str (entity-id entity))
               ".")))
       (tap> [:wrn ::missing-attr-in-entity-model k]))))
+
+
+(defn assert-req-attrs-exist [entity attr-models]
+  (doseq [[k attr-model] attr-models]
+    (when (or (-> attr-model :req?)
+              (-> attr-model :uid?))
+      (when-not (contains? entity k)
+        (throw (ex-info (str "Missing attribute " (pr-str k)
+                             " in entity definition "
+                             (pr-str (entity-id entity)) ".")
+                        {:entity entity}))))))
 
 
 (defn- assert-by-entity-model [entity]
   (let [type (-> entity :entity/type)
         model (entity! [:entity-model/ident type])]
     ;;(tap> [:!!! ::complete type model])
-    ;; TODO auto-spec when ref? true
-    ;; TODO reqired when uid? true
     (when-not model
       (throw (ex-info (str "Missing entity-model " (pr-str type) ".")
                       {:entity entity})))
     (let [attr-models (-> model :entity-model/attrs)]
+      (assert-req-attrs-exist entity attr-models)
       (doseq [k (-> entity keys)]
         (assert-attr-by-model entity k (-> attr-models (get k)))))))
 
 
-(s/def ::entity-ident simple-keyword?)
-(s/def ::db-id int?)
-(s/def ::entity-attr-k qualified-keyword?)
-(s/def ::entity-lookup-ref (s/cat :k ::entity-attr-k
-                                  :v (s/or :id ::entity-id
-                                           :ident ::entity-ident)))
-(s/def ::entity-ref (s/or :id ::db-id
-                          :lookup-ref ::entity-lookup-ref))
 
 (defn register-entity
   ([type entity]

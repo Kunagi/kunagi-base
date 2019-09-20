@@ -15,7 +15,7 @@
   :assets ::asset-pool
   {:asset-pool/ident {:uid? true :spec keyword?}
    :asset-pool/req-perms {:spec (s/coll-of qualified-keyword?)}
-   :asset-pool/load-f {:req? true :spec fn?}
+   :asset-pool/load-f {:spec fn?}
    :asset-pool/load-on-startup {:spec (s/coll-of string?)}
    :asset-pool/dir-path {:spec string?}
    :asset-pool/git-repo? {:spec boolean?}})
