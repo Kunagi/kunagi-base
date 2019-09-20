@@ -1,4 +1,4 @@
-(ns kunagi-base.event-sourcing.aggregator)
+(ns kunagi-base.modules.event-sourcing.aggregator)
 
 
 (defprotocol Aggregator

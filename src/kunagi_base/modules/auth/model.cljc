@@ -1,9 +1,9 @@
 (ns kunagi-base.modules.auth.model
   (:require
-   [kunagi-base.modules.event-sourcing]
+   [kunagi-base.modules.event-sourcing.model]
 
    [kunagi-base.appmodel :refer [def-module]]
-   [kunagi-base.event-sourcing.api :as es :refer [def-aggregator def-command def-projector]]
+   [kunagi-base.modules.event-sourcing.api :as es :refer [def-aggregator def-command def-projector]]
 
    [kunagi-base.modules.auth.aggregators.oauth-users.projections.oauth-users :as p-oauth-users]
    [kunagi-base.modules.auth.aggregators.oauth-users :as c-oauth-users]

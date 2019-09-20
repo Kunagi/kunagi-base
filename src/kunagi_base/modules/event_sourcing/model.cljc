@@ -1,8 +1,8 @@
-(ns kunagi-base.modules.event-sourcing
+(ns kunagi-base.modules.event-sourcing.model
   (:require
    [kunagi-base.appmodel :refer [def-module def-entity-model]]
    [kunagi-base.modules.events.model :refer [def-event-handler]]
-   [kunagi-base.event-sourcing.api :as impl]))
+   [kunagi-base.modules.event-sourcing.api :as impl]))
 
 
 ;; TODO def-entity-model

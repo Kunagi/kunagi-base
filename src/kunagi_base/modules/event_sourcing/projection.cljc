@@ -1,4 +1,4 @@
-(ns kunagi-base.event-sourcing.projection)
+(ns kunagi-base.modules.event-sourcing.projection)
 
 
 (defn apply-event-to-payload [apply-event-f payload event]

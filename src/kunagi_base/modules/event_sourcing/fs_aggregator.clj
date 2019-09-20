@@ -1,6 +1,6 @@
-(ns kunagi-base.event-sourcing.fs-aggregator
+(ns kunagi-base.modules.event-sourcing.fs-aggregator
   (:require
-   [kunagi-base.event-sourcing.aggregator :as aggregator]))
+   [kunagi-base.modules.event-sourcing.aggregator :as aggregator]))
 
 
 (defonce !agents (atom {}))

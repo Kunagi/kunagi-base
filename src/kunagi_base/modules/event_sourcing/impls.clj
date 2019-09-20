@@ -1,7 +1,7 @@
-(ns kunagi-base.event-sourcing.impls
+(ns kunagi-base.modules.event-sourcing.impls
   (:require
-   [kunagi-base.event-sourcing.fs-aggregator :as aggregator]
-   [kunagi-base.event-sourcing.fs-projector :as projector]))
+   [kunagi-base.modules.event-sourcing.fs-aggregator :as aggregator]
+   [kunagi-base.modules.event-sourcing.fs-projector :as projector]))
 
 
 (defn new-aggregator [aggregator]

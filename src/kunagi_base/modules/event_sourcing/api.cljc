@@ -1,13 +1,13 @@
-(ns kunagi-base.event-sourcing.api
+(ns kunagi-base.modules.event-sourcing.api
   (:require
    [clojure.spec.alpha :as s]
 
    [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am]
    [kunagi-base.auth.api :as auth]
-   [kunagi-base.event-sourcing.projection :as projection]
-   [kunagi-base.event-sourcing.aggregator :as aggregator]
-   [kunagi-base.event-sourcing.impls :as impls]))
+   [kunagi-base.modules.event-sourcing.projection :as projection]
+   [kunagi-base.modules.event-sourcing.aggregator :as aggregator]
+   [kunagi-base.modules.event-sourcing.impls :as impls]))
 
 
 

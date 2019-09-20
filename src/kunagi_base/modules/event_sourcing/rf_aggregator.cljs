@@ -1,7 +1,7 @@
-(ns kunagi-base.event-sourcing.rf-aggregator
+(ns kunagi-base.modules.event-sourcing.rf-aggregator
   (:require
    [re-frame.core :as rf]
-   [kunagi-base.event-sourcing.aggregator :as aggregator]))
+   [kunagi-base.modules.event-sourcing.aggregator :as aggregator]))
 
 
 (defrecord RfAggregator [model]

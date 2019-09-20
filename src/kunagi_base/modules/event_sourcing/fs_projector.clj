@@ -1,4 +1,4 @@
-(ns kunagi-base.event-sourcing.fs-projector
+(ns kunagi-base.modules.event-sourcing.fs-projector
   (:require
    [kunagi-base.utils :as utils]))
 
