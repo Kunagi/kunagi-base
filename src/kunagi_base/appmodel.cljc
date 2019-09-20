@@ -72,12 +72,6 @@
     (d/init-db datoms schema)))
 
 
-(defn def-extension [{:as extension
-                      :keys [schema]}]
-  (tap> [:dbg ::def-extension extension])
-  (swap! !db extend-schema schema))
-
-
 (defn update-facts [facts]
   ;; (tap> [:!!! ::update-facts facts])
   (try
@@ -94,6 +88,7 @@
         model (entity! [:entity-model/ident type])]
     ;;(tap> [:!!! ::complete type model])
     ;; TODO verify ident-attr-spec
+    ;; TODO auto-spec when ref? true
     (if-not model
       (do
         (tap> [:wrn ::missing-model-for-entity type])
@@ -122,7 +117,7 @@
 (s/def ::ref? boolean?)
 (s/def ::req? boolean?)
 (s/def ::cardinality-many? boolean?)
-(s/def ::unique-identity? boolean?)
+(s/def ::unique-identity? boolean?) ;; TODO uid?
 (s/def ::entity-attr-model (s/keys :opt-un [::unique-identity? ::ref? ::req? ::cardinality-many?]))
 (s/def ::entity-model-attrs (s/map-of ::entity-attr-k ::entity-attr-model))
 

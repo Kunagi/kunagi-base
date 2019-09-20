@@ -1,24 +1,51 @@
 (ns kunagi-base.modules.event-sourcing
   (:require
-   [kunagi-base.appmodel :refer [def-module def-extension]]
+   [kunagi-base.appmodel :refer [def-module def-entity-model]]
    [kunagi-base.modules.events :refer [def-event-handler]]
    [kunagi-base.event-sourcing.api :as impl]))
 
+
+;; TODO def-entity-model
+;; TODO move def-methods to here
 
 (def-module
   {:module/id ::event-sourcing})
 
 
-(def-extension
-  {:schema {:aggregator/module {:db/type :db.type/ref}
-            :aggregator/id {:db/unique :db.unique/identity}
-            :projector/module {:db/type :db.type/ref}
-            :projector/id {:db/unique :db.unique/identity}
-            :projector/aggregator {:db/type :db.type/ref}
-            :command/module {:db/type :db.type/ref}
-            :command/id {:db/unique :db.unique/identity}
-            :command/ident {:db/unique :db.unique/identity}
-            :command/aggregator {:db/type :db.type/ref}}})
+;;; aggregator
+
+
+(def-entity-model
+  :event-sourcing ::aggregator
+  {:aggregator/ident {:req? true
+                      :unique-identity? true
+                      :spec simple-keyword?}})
+
+
+;;; command
+
+
+(def-entity-model
+  :event-sourcing ::command
+  {:command/ident {:req? true
+                         :unique-identity? true
+                         :spec qualified-keyword?} ;; TODO simple-keyword
+   :command/aggregator {:ref? true}
+   :command/f {:req? true :spec fn?}})
+
+
+;;; projector
+
+
+(def-entity-model
+  :event-sourcing ::projector
+  {:projector/ident {:req? true
+                     :spec simple-keyword?}
+   :projector/aggregator {:ref? true}
+   :projector/apply-event-f {:req? true :spec fn?}})
+
+
+;;;
 
 
 ;; TODO deprecated (use trigger-command! directly)
