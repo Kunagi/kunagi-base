@@ -83,31 +83,6 @@
                       ex)))))
 
 
-(defn- complete-entity-by-model [entity]
-  (let [type (-> entity :entity/type)
-        model (entity! [:entity-model/ident type])]
-    ;;(tap> [:!!! ::complete type model])
-    ;; TODO verify ident-attr-spec
-    ;; TODO auto-spec when ref? true
-    (if-not model
-      (do
-        (tap> [:wrn ::missing-model-for-entity type])
-        entity)
-      (let [attr-models (-> model :entity-model/attrs)]
-        (doseq [k (-> entity keys)]
-          (if-not (or (= :entity/type k)
-                   (#{:id :module} (keyword (name k))))
-            (if-let [attr-model (-> attr-models (get k))]
-              (if-let [spec (-> attr-model :spec)]
-                (utils/assert-spec
-                 spec (-> entity k)
-                 (str "Invalid attribute "
-                      (pr-str k) " = " (pr-str (-> entity k))
-                      " in entity definition "
-                      (pr-str (-> entity (get (keyword (name type) "id"))))
-                      ".")))
-              (tap> [:wrn ::missing-attr-in-entity-model k]))))
-        entity))))
 
 
 (s/def ::entity-id qualified-keyword?)
@@ -117,8 +92,8 @@
 (s/def ::ref? boolean?)
 (s/def ::req? boolean?)
 (s/def ::cardinality-many? boolean?)
-(s/def ::unique-identity? boolean?) ;; TODO uid?
-(s/def ::entity-attr-model (s/keys :opt-un [::unique-identity? ::ref? ::req? ::cardinality-many?]))
+(s/def ::uid? boolean?)
+(s/def ::entity-attr-model (s/keys :opt-un [::uid? ::ref? ::req? ::cardinality-many?]))
 (s/def ::entity-model-attrs (s/map-of ::entity-attr-k ::entity-attr-model))
 
 
@@ -157,12 +132,41 @@
                 (->> ks (filter #(get-in attrs-models [% :cardinality-many?]))))
         schema (extend-schema-for-ks
                 schema :db/unique :db.unique/identity
-                (->> ks (filter #(get-in attrs-models [% :unique-identity?]))))]
+                (->> ks (filter #(get-in attrs-models [% :uid?]))))]
     ;;(tap> [:!!! ::schema-ext schema])
     (swap! !db extend-schema schema)
 
     (update-facts
      [entity-model])))
+
+
+(defn- assert-attr-by-model [entity k attr-model]
+  (when-not (or (= :entity/type k)
+                (#{:id :module} (keyword (name k))))
+    (if attr-model
+      (if-let [spec (-> attr-model :spec)]
+        (utils/assert-spec
+         spec (-> entity k)
+         (str "Invalid attribute "
+              (pr-str k) " = " (pr-str (-> entity k))
+              " in entity definition "
+              (pr-str (-> entity (get (keyword (name (-> entity :entity/type)) "id"))))
+              ".")))
+      (tap> [:wrn ::missing-attr-in-entity-model k]))))
+
+
+(defn- assert-by-entity-model [entity]
+  (let [type (-> entity :entity/type)
+        model (entity! [:entity-model/ident type])]
+    ;;(tap> [:!!! ::complete type model])
+    ;; TODO auto-spec when ref? true
+    ;; TODO reqired when uid? true
+    (when-not model
+      (throw (ex-info (str "Missing entity-model " (pr-str type) ".")
+                      {:entity entity})))
+    (let [attr-models (-> model :entity-model/attrs)]
+      (doseq [k (-> entity keys)]
+        (assert-attr-by-model entity k (-> attr-models (get k)))))))
 
 
 (s/def ::entity-ident simple-keyword?)
@@ -185,8 +189,8 @@
            (keyword (name type) "module") ::entity-ref}}
     (str "Invalid entity: " (pr-str entity) "."))
    (let [db @!db
-         entity (assoc entity :entity/type type)
-         entity (complete-entity-by-model entity)]
+         entity (assoc entity :entity/type type)]
+     (assert-by-entity-model entity)
      (update-facts
       [entity]))))
 

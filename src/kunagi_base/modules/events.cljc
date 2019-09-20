@@ -14,9 +14,7 @@
 
 (def-entity-model
   :events ::event
-  {:event/ident {:req? true
-                 :unique-identity? true
-                 :spec qualified-keyword?}
+  {:event/ident {:uid? true :spec qualified-keyword?}
    :event/req-perms {:spec (s/coll-of qualified-keyword?)}})
 
 
@@ -29,11 +27,8 @@
 
 (def-entity-model
   :events ::event-handler
-  {:event-handler/ident {:req? true
-                         :unique-identity? true
-                         :spec simple-keyword?}
-   :event-handler/event-ident {:req? true
-                               :spec qualified-keyword?}
+  {:event-handler/ident {:uid? true :spec simple-keyword?}
+   :event-handler/event-ident {:req? true :spec qualified-keyword?}
    :event-handler/f {:req? true :spec fn?}})
 
 

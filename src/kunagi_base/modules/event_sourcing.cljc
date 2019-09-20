@@ -17,9 +17,7 @@
 
 (def-entity-model
   :event-sourcing ::aggregator
-  {:aggregator/ident {:req? true
-                      :unique-identity? true
-                      :spec simple-keyword?}
+  {:aggregator/ident {:uid? true :spec simple-keyword?}
    :aggregator/impl {}})
 
 
@@ -28,9 +26,7 @@
 
 (def-entity-model
   :event-sourcing ::command
-  {:command/ident {:req? true
-                         :unique-identity? true
-                         :spec qualified-keyword?} ;; TODO simple-keyword
+  {:command/ident {:uid? true :spec qualified-keyword?} ;; TODO simple-keyword
    :command/aggregator {:ref? true}
    :command/f {:req? true :spec fn?}})
 
@@ -40,8 +36,7 @@
 
 (def-entity-model
   :event-sourcing ::projector
-  {:projector/ident {:req? true
-                     :spec simple-keyword?}
+  {:projector/ident {:req? true :spec simple-keyword?}
    :projector/aggregator {:ref? true}
    :projector/apply-event-f {:req? true :spec fn?}})
 
