@@ -2,7 +2,7 @@
   (:require
    [clojure.spec.alpha :as s]
    [kunagi-base.utils :as utils]
-   [kunagi-base.appmodel :as am :refer [def-module def-entity-model def-extension]]
+   [kunagi-base.appmodel :as am :refer [def-module def-entity-model]]
    [kunagi-base.modules.events :refer [def-event def-event-handler]]
    [kunagi-base.assets :as assets]))
 

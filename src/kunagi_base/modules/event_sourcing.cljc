@@ -19,7 +19,8 @@
   :event-sourcing ::aggregator
   {:aggregator/ident {:req? true
                       :unique-identity? true
-                      :spec simple-keyword?}})
+                      :spec simple-keyword?}
+   :aggregator/impl {}})
 
 
 ;;; command

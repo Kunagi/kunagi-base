@@ -3,7 +3,7 @@
    [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.context :as context]
-   [kunagi-base.appmodel :as am :refer [def-extension]]))
+   [kunagi-base.appmodel :as am]))
 
 
 (defn- handler-handle-event [context event [event-handler-id]]
