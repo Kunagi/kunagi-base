@@ -20,7 +20,11 @@
     (let [event-ident (first event-v)
           event (am/entity! [:event/ident event-ident])
           req-perms (-> event :event/req-perms)]
-      ;; (tap> [:!!! ::event event-v event req-perms])
+      ;; (tap> [:!!! ::event-dispatch-permitted? {:event-v event-v
+      ;;                                          :event event
+      ;;                                          :req-perms req-perms
+      ;;                                          :user-perms (-> context :auth/user-perms)
+      ;;                                          :context context}])
       (if (nil? req-perms)
         false
         (auth/context-has-permissions? context req-perms)))))

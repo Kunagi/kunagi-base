@@ -5,8 +5,7 @@
 
    [kunagi-base.utils :as utils]
    [kunagi-base.context :as context]
-   [kunagi-base.appmodel :as am]
-   [kunagi-base.modules.assets.api :as assets]))
+   [kunagi-base.appmodel :as am]))
 
 
 
@@ -32,7 +31,6 @@
   (-> app-db
       (context/init-app-db)
       (merge initial-data)
-      (assets/load-startup-assets)
       (exec-init-functions)))
 
 
