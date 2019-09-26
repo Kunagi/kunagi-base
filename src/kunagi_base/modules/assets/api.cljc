@@ -8,6 +8,7 @@
    [kunagi-base.modules.assets.loader :as loader]))
 
 
+;; TODO deprecated: user should be unaware of source
 (rf/reg-sub
  :assets/asset
  (fn [db [_ path]]
@@ -54,8 +55,6 @@
       (provide-asset-for-output asset-path asset-pool context))))
 
 
-
-
 (defn- load-asset-and-store
   [asset-pool app-db asset-path]
   (let [module-ident (-> asset-pool :asset-pool/module :module/ident)
@@ -87,3 +86,11 @@
         response-f (-> context :comm/response-f)]
     (response-f [:assets/asset-received {:path path
                                          :data asset}])))
+
+
+(defn load-asset! [db path]
+  (let [[module-ident asset-pool-ident asset-path] path
+        asset-pool-id (asset-pool-id path)
+        asset-pool (am/entity! asset-pool-id)]
+    (load-asset db asset-pool asset-path)
+    db))

@@ -7,6 +7,8 @@
    [kunagi-base.modules.assets.api :as impl]))
 
 
+;; TODO split into server and browserapp
+
 (def-module
   {:module/id ::assets})
 
@@ -18,7 +20,7 @@
    :asset-pool/load-f {:spec fn?}
    :asset-pool/load-on-startup {:spec (s/coll-of string?)}
    :asset-pool/dir-path {:spec string?}
-   :asset-pool/git-repo? {:spec boolean?}})
+   :asset-pool/git-repo? {:spec boolean?}}) ;; server only
 
 
 (defn def-asset-pool [asset-pool]
