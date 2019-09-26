@@ -58,6 +58,9 @@
       (assoc :http/client-event (-> data :event))))
 
 
-(defn from-reframe-event [db]
-  (-> (new-context)
-      (assoc :db db)))
+(defn from-rf-db [db]
+  (let [user (-> db :auth/user)]
+    (-> (new-context)
+        (assoc :db db)
+        (assoc :auth/user-id (-> user :user/id))
+        (assoc :auth/user-perms (-> user :user/perms)))))
