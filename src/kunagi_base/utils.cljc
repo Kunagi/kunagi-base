@@ -29,17 +29,24 @@
                                  ~@(mapcat (fn [v] [`'~v v]) values))))))
 
 (defn assert-spec
-  [spec value otherwise-msg]
-  (if (s/valid? spec value)
-    value
-    (throw (ex-info (str otherwise-msg
-                         "\nValue does not conform to spec "
-                         spec
-                         ": "
-                         (pr-str value))
-                    {:spec spec
-                     :value value
-                     :spec-explain (s/explain-str spec value)}))))
+  ([spec value]
+   (assert-spec spec value nil))
+  ([spec value otherwise-msg]
+   (if (s/valid? spec value)
+     value
+     (throw (ex-info (str (when otherwise-msg
+                            (if (qualified-keyword? otherwise-msg)
+                              (str "Assertion in "
+                                   (pr-str otherwise-msg)
+                                   " failed.\n")
+                              (str otherwise-msg "\n")))
+                          "Value does not conform to spec "
+                          spec
+                          ": "
+                          (pr-str value))
+                     {:spec spec
+                      :value value
+                      :spec-explain (s/explain-str spec value)})))))
 
 
 ;;; spec
