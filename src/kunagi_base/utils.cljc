@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [assert])
   (:require
    [clojure.spec.alpha :as s]
+   [clojure.string :as str]
    [bindscript.api :refer [def-bindscript]]))
 
 
@@ -47,6 +48,43 @@
                      {:spec spec
                       :value value
                       :spec-explain (s/explain-str spec value)})))))
+
+
+;;; search
+
+
+(defn searchtext->words [s]
+  (when s
+    (-> s
+        .trim
+        .toLowerCase
+        (str/split #" "))))
+
+
+(defn- text-contains-word? [text word]
+  (when text
+    (str/includes? text word)))
+
+
+(defn- texts-contain-word? [texts word]
+  (reduce
+   (fn [ret text]
+     (or ret (text-contains-word? text word)))
+   false
+   texts))
+
+
+(defn texts-contain-words? [texts words]
+  (let [texts (map
+               (fn [s]
+                 (when s (.toLowerCase s)))
+               texts)]
+    (reduce
+     (fn [ret word]
+       (let [ret (and ret (texts-contain-word? texts word))]
+         ret))
+     true
+     words)))
 
 
 ;;; spec
