@@ -5,6 +5,7 @@
 
    [kunagi-base.utils :as utils]
    [kunagi-base.context :as context]
+   [kunagi-base.appconfig.api :as appconfig]
    [kunagi-base.appmodel :as am]))
 
 
@@ -34,12 +35,23 @@
       (exec-init-functions)))
 
 
+(defn- log-environment-info! []
+  #?(:clj
+     (tap> [:inf ::environment-info
+            {:working-directory (System/getProperty "user.dir")
+             :user-name (System/getProperty "user.name")
+             :user-home (System/getProperty "user.home")
+             :java-version (System/getProperty "java.version")
+             :locale (-> (java.util.Locale/getDefault) .toString)}])))
+
+
 (defn start! [initial-data]
-  #?(:clj (context/update-app-db #(-init-app-db % initial-data))
-     :cljs (let [initial-data (if (string? initial-data)
-                                (read-string initial-data)
-                                initial-data)]
-             (rf/dispatch-sync [::init initial-data]))))
+  (log-environment-info!)
+  (let [db (-> {}
+               (utils/deep-merge initial-data)
+               appconfig/init-app-db)]
+    #?(:clj  (context/update-app-db #(-init-app-db % db))
+       :cljs (rf/dispatch-sync [::init db]))))
 
 
 ;;; re-frame
