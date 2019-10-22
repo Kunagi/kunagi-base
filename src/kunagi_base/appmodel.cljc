@@ -1,10 +1,10 @@
 (ns kunagi-base.appmodel
   (:require
    [clojure.spec.alpha :as s]
-   [datascript.core :as d]
 
    [kunagi-base.logging.tap]
-   [kunagi-base.utils :as utils]))
+   [kunagi-base.utils :as utils]
+   [kunagi-base.dsdb.api :as dsdb]))
 
 
 (s/def ::entity-ident simple-keyword?)
@@ -26,35 +26,21 @@
                 :entity-model/id     {:db/unique :db.unique/identity}
                 :entity-model/ident  {:db/unique :db.unique/identity}
                 :entity-model/module {:db/type :db.type/ref}}]
-    (-> (d/empty-db schema))))
+    (dsdb/new-db schema)))
 
 
-(defn q
-  ([db query]
-   (q db query []))
-  ([db query params]
-   (try
-     (let [ret (apply d/q (into [query db] params))]
-       ;; (tap> [:!!! ::query-result {:query query
-       ;;                             :result ret
-       ;;                             :params params
-       ;;                             :db db}])
-       ret)
-     (catch  #?(:clj Exception :cljs :default) ex
-       (tap> [:err ::query-failed ex])
-       (throw (ex-info "Query failed"
-                       {:query query}
-                       ex))))))
+(def q dsdb/q)
 
-
-(defn entity
-  [db id]
-  (d/entity db id))
+(def entity dsdb/entity)
 
 
 ;;;
 
 (defonce !db (atom (new-db)))
+
+
+(defn update-facts [facts]
+  (swap! !db dsdb/update-facts facts))
 
 
 (defn model-db []
@@ -73,23 +59,8 @@
   (entity @!db id))
 
 
-(defn- extend-schema [db schema-extension]
-  (let [datoms (or (d/datoms db :eavt) [])
-        schema (merge (get db :schema)
-                      schema-extension)]
-    ;; (tap> [:!!! ::new-schema schema])
-    (d/init-db datoms schema)))
 
 
-(defn update-facts [facts]
-  ;; (tap> [:!!! ::update-facts facts])
-  (try
-    (swap! !db d/db-with facts)
-    (catch #?(:clj Exception :cljs :default) ex
-      (tap> [:err ::update-failed ex])
-      (throw (ex-info "Update failed"
-                      {:facts facts}
-                      ex)))))
 
 
 
@@ -143,7 +114,7 @@
                 schema :db/unique :db.unique/identity
                 (->> ks (filter #(get-in attrs-models [% :uid?]))))]
     ;;(tap> [:!!! ::schema-ext schema])
-    (swap! !db extend-schema schema)
+    (swap! !db dsdb/extend-schema schema)
 
     (update-facts
      [entity-model])))
