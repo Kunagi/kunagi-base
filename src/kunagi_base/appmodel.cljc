@@ -4,7 +4,8 @@
 
    [kunagi-base.logging.tap]
    [kunagi-base.utils :as utils]
-   [kunagi-base.dsdb.api :as dsdb]))
+   [kunagi-base.dsdb.api :as dsdb]
+   [kunagi-base.context :as context]))
 
 
 (s/def ::entity-ident simple-keyword?)
@@ -15,6 +16,7 @@
                                            :ident ::entity-ident)))
 (s/def ::entity-ref (s/or :id ::db-id
                           :lookup-ref ::entity-lookup-ref))
+
 
 ;;FIXME update entities instead of inserting
 
