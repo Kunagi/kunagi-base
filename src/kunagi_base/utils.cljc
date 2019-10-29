@@ -1,5 +1,6 @@
 (ns kunagi-base.utils
   (:refer-clojure :exclude [assert])
+  #?(:cljs (:require-macros [kunagi-base.utils]))
   (:require
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
@@ -39,6 +40,9 @@
        (throw (ex-info ~otherwise-msg
                        (hash-map :form '~form
                                  ~@(mapcat (fn [v] [`'~v v]) values))))))
+
+;; (defn assert [form otherwise-msg & values])
+;;   ;; FIXME
 
 (defn assert-spec
   ([spec value]
