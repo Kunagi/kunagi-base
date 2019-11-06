@@ -34,7 +34,8 @@
    (q db query []))
   ([db query params]
    (try
-     (let [ret (apply d/q (into [query (-> db :db) params]))]
+     (let [ret (apply d/q (into [query (-> db :db)]
+                                params))]
        ;; (tap> [:!!! ::query-result {:query query
        ;;                             :result ret
        ;;                             :params params
