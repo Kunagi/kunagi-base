@@ -40,14 +40,19 @@
                 :req-perms (-> (am/entity! [:event/ident event-ident]) :event/req-perms)
                 :user (-> context :auth/user-id)
                 :user-perms (-> context :auth/user-perms)}])
-       (if-let [response-f (-> context :comm/response-f)]
-         (response-f [:auth/server-event-not-permitted event])))
+        (if-let [response-f (-> context :comm/response-f)]
+          (response-f [:auth/server-event-not-permitted event])))
       (let [event-handlers (am/q!
                             '[:find ?e
                               :in $ ?event-ident
                               :where
-                              [?e :event-handler/f _]
                               [?e :event-handler/event-ident ?event-ident]]
                             [event-ident])]
+        (when (empty? event-handlers)
+          (tap> [:wrn ::no-event-handlers {:event-ident event-ident
+                                           :known-handlers (am/q!
+                                                            '[:find ?e ?ident
+                                                              :where
+                                                              [?e :event-handler/event-ident ?ident]])}]))
         (doseq [event-handler event-handlers]
           (handler-handle-event context event event-handler))))))
