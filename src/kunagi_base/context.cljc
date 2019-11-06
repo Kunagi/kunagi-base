@@ -61,7 +61,7 @@
 
 
 (defn from-rf-db [db]
-  (let [user (-> db :auth/user)]
+  (let [user (-> db :appconfig/config :auth/user)]
     (-> (new-context)
         (assoc :db db)
         (assoc :auth/user-id (-> user :user/id))
