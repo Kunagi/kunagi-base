@@ -8,7 +8,7 @@
 ;;; db type definition
 
 
-(s/def ::db-type-identifier (= ::db-type-identifier))
+(s/def ::db-type-identifier #(= ::db-type-identifier %))
 (s/def ::db (s/keys :req [::db-type-identifier]))
 (s/def ::event-ident keyword?)
 (s/def ::event-handler fn?)
