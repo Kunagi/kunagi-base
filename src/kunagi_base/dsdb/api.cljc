@@ -142,6 +142,14 @@
     (d/pull-many db pattern ids)))
 
 
+(defn pull-query [db pattern wheres & args]
+  (let [query '[:find ?e
+                :in $ ?1 ?2 ?3
+                :where]
+        query (into query wheres)]
+    (pull-many db pattern (map first (q db query args)))))
+
+
 (defn update-facts [db facts]
   ;; (tap> [:!!! ::update-facts facts])
   (try
