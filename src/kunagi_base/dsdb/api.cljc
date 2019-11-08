@@ -132,6 +132,16 @@
     (map #(d/entity db %) ids)))
 
 
+(defn pull [db pattern id]
+  (let [db (-> db :db)]
+    (d/pull db pattern id)))
+
+
+(defn pull-many [db pattern ids]
+  (let [db (-> db :db)]
+    (d/pull-many db pattern ids)))
+
+
 (defn update-facts [db facts]
   ;; (tap> [:!!! ::update-facts facts])
   (try
