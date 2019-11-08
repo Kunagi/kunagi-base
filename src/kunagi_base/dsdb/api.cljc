@@ -5,9 +5,68 @@
    [kunagi-base.utils :as utils]))
 
 
-(defn new-db [schema]
-  (let [db (-> (d/empty-db schema))]
-    {:db db}))
+;;; db type definition
+
+
+(s/def ::db-type-identifier (= ::db-type-identifier))
+(s/def ::event-ident keyword?)
+(s/def ::event-handler fn?)
+(s/def ::attr-ident qualified-keyword?)
+
+(s/def ::attr-flag (s/or :ref #(= :ref %)
+                         :many #(= :many %)
+                         :uid #(= :uid %)))
+(s/def ::attr-flags (s/coll-of ::attr-flag))
+
+
+(defn new-type []
+  (atom {::db-type-identifier ::db-type-identifier}))
+
+
+(defn attr-flags->schema [attr-spec]
+  (reduce
+   (fn [schema spec-element]
+     (case spec-element
+       :ref (assoc schema :db/type :db.type/ref)
+       :many (assoc schema :db/cardinality :db.cardinality/many)
+       :uid (assoc schema :db/unique :db.unique/identity)
+       (throw (ex-info (str "Unsupported attr-spec-element: " spec-element)
+                       {:unsupported-element spec-element
+                        :attr-spec attr-spec}))))
+   {}
+   attr-spec))
+
+
+(defn def-attr [db-type attr-ident attr-flags]
+  (utils/assert-spec ::attr-ident attr-ident ::def-attr)
+  (utils/assert-spec ::attr-flags attr-flags ::def-attr)
+  (let [entity-name-key (keyword (namespace attr-ident))
+        attr-name-key (keyword (name attr-ident))
+        attr-schema (attr-flags->schema attr-flags)
+        attr-spec {:flags (into #{} attr-flags)}]
+    (swap! db-type
+           (fn [db-type]
+             (-> db-type
+                 (assoc-in [:entities entity-name-key :attrs attr-name-key] attr-spec)
+                 (assoc-in [:schema attr-ident] attr-schema))))))
+
+
+(defn def-event [db-type event-ident event-handler]
+  (utils/assert-spec ::event-ident event-ident ::def-event)
+  (utils/assert-spec ::event-handler event-handler ::def-event)
+  (swap! db-type assoc-in [:events event-ident :handler] event-handler))
+
+
+;;; new-db
+
+
+(defn new-db [db-type]
+  (let [schema (if (map? db-type)
+                 db-type
+                 (-> @db-type :schema))
+        db (-> (d/empty-db schema))]
+    {:db-type db-type
+     :db db}))
 
 
 ;; helpers
@@ -84,3 +143,29 @@
                       ex)))))
 
 
+;;; applying events
+
+
+(defn event-handler [db event-ident]
+  (let [db-type (get db :db-type)
+        _ (when-not db-type (throw (ex-info "Db has no :db-type"
+                                            {:db db})))]
+    (-> @db-type
+        :events
+        (get event-ident)
+        :handler)))
+
+
+(defn apply-event [db event]
+  (let [[event-ident event-args] event
+        handler (event-handler db event-ident)
+        _ (when-not handler (throw (ex-info (str "Missing event handler: " event-ident)
+                                            {:event-ident event-ident
+                                             :available-handlers
+                                             (-> db :db-type deref :events keys)})))
+        facts (handler db event-args)]
+    (update-facts db facts)))
+
+
+(defn apply-events [db events]
+  (reduce apply-event db events))
