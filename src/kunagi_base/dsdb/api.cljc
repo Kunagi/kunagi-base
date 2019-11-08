@@ -66,7 +66,8 @@
                  db-type
                  (-> @db-type :schema))
         db (-> (d/empty-db schema))]
-    {:db-type db-type
+    {::db-type-identifier ::db-type-identifier
+     :db-type db-type
      :db db}))
 
 
