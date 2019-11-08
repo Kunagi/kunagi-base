@@ -9,6 +9,7 @@
 
 
 (s/def ::db-type-identifier (= ::db-type-identifier))
+(s/def ::db (s/keys :req [::db-type-identifier]))
 (s/def ::event-ident keyword?)
 (s/def ::event-handler fn?)
 (s/def ::attr-ident qualified-keyword?)
@@ -133,11 +134,13 @@
 
 
 (defn pull [db pattern id]
+  (utils/assert-spec ::db db ::pull-many)
   (let [db (-> db :db)]
     (d/pull db pattern id)))
 
 
 (defn pull-many [db pattern ids]
+  (utils/assert-spec ::db db ::pull-many)
   (let [db (-> db :db)]
     (d/pull-many db pattern ids)))
 
@@ -175,14 +178,16 @@
 
 
 (defn apply-event [db event]
-  (let [[event-ident event-args] event
-        handler (event-handler db event-ident)
-        _ (when-not handler (throw (ex-info (str "Missing event handler: " event-ident)
-                                            {:event-ident event-ident
-                                             :available-handlers
-                                             (-> db :db-type deref :events keys)})))
-        facts (handler db event-args)]
-    (update-facts db facts)))
+  (if-not event
+    db
+    (let [[event-ident event-args] event
+          handler (event-handler db event-ident)
+          _ (when-not handler (throw (ex-info (str "Missing event handler: " event-ident)
+                                              {:event-ident event-ident
+                                               :available-handlers
+                                               (-> db :db-type deref :events keys)})))
+          facts (handler db event-args)]
+      (update-facts db facts))))
 
 
 (defn apply-events [db events]
