@@ -10,14 +10,16 @@
 
 (s/def ::db-type-identifier #(= ::db-type-identifier %))
 (s/def ::db (s/keys :req [::db-type-identifier]))
-(s/def ::event-ident keyword?)
-(s/def ::event-handler fn?)
-(s/def ::attr-ident qualified-keyword?)
 
+(s/def ::entity-ident keyword?)
+(s/def ::attr-ident qualified-keyword?)
 (s/def ::attr-flag (s/or :ref #(= :ref %)
                          :many #(= :many %)
                          :uid #(= :uid %)))
 (s/def ::attr-flags (s/coll-of ::attr-flag))
+
+(s/def ::event-ident keyword?)
+(s/def ::event-handler fn?)
 
 
 (defn new-type []
@@ -36,6 +38,11 @@
                         :attr-spec attr-spec}))))
    {}
    attr-spec))
+
+
+(defn def-entity [db-type entity-ident entity-spec]
+  (utils/assert-spec ::entity-ident entity-ident ::def-entity)
+  (swap! db-type assoc-in [:entities entity-ident] entity-spec))
 
 
 (defn def-attr [db-type attr-ident attr-flags]
@@ -61,14 +68,19 @@
 ;;; new-db
 
 
-(defn new-db [db-type]
-  (let [schema (if (map? db-type)
-                 db-type
-                 (-> @db-type :schema))
-        db (-> (d/empty-db schema))]
-    {::db-type-identifier ::db-type-identifier
-     :db-type db-type
-     :db db}))
+(defn new-db
+  ([db-type]
+   (new-db db-type nil))
+  ([db-type datoms]
+   (let [schema (if (map? db-type)
+                  db-type
+                  (-> @db-type :schema))
+         db (if datoms
+              (d/init-db datoms schema)
+              (d/empty-db schema))]
+     {::db-type-identifier ::db-type-identifier
+      :db-type db-type
+      :db db})))
 
 
 ;; helpers
@@ -134,6 +146,15 @@
     (map #(d/entity db %) ids)))
 
 
+(defn entities-query [db wheres & args]
+  (let [query '[:find ?e
+                :in $ ?1 ?2 ?3
+                :where]
+        query (into query wheres)
+        ids (map first (q db query args))]
+    (entities db ids)))
+
+
 (defn pull [db pattern id]
   (utils/assert-spec ::db db ::pull-many)
   (let [db (-> db :db)]
@@ -150,8 +171,9 @@
   (let [query '[:find ?e
                 :in $ ?1 ?2 ?3
                 :where]
-        query (into query wheres)]
-    (pull-many db pattern (map first (q db query args)))))
+        query (into query wheres)
+        ids (map first (q db query args))]
+    (pull-many db pattern ids)))
 
 
 (defn update-facts [db facts]
