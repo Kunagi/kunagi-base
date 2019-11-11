@@ -146,7 +146,7 @@
     (map #(d/entity db %) ids)))
 
 
-(defn entities-query [db wheres & args]
+(defn entities-where [db wheres & args]
   (let [query '[:find ?e
                 :in $ ?1 ?2 ?3
                 :where]
@@ -154,6 +154,8 @@
         ids (map first (q db query args))]
     (entities db ids)))
 
+;; deprecated
+(def entities-query entities-where)
 
 (defn pull [db pattern id]
   (utils/assert-spec ::db db ::pull-many)
@@ -167,13 +169,16 @@
     (d/pull-many db pattern ids)))
 
 
-(defn pull-query [db pattern wheres & args]
+(defn pull-where [db pattern wheres & args]
   (let [query '[:find ?e
                 :in $ ?1 ?2 ?3
                 :where]
         query (into query wheres)
         ids (map first (q db query args))]
     (pull-many db pattern ids)))
+
+;; deprecated
+(def pull-query pull-where)
 
 
 (defn update-facts [db facts]
