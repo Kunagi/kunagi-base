@@ -69,7 +69,8 @@
 
 
 (defn searchtext->words [s]
-  (when s
+  (if (str/blank? s)
+    nil
     (-> s
         .trim
         .toLowerCase
