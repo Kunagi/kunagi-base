@@ -5,6 +5,7 @@
    [kunagi-base.utils :as utils]))
 
 
+
 ;;; db type definition
 
 
@@ -40,12 +41,20 @@
    attr-spec))
 
 
-(defn def-entity [db-type entity-ident entity-spec]
+(defn def-entity
+  "
+  Example:
+  `(def-entity db-type :person {})`"
+  [db-type entity-ident entity-spec]
   (utils/assert-spec ::entity-ident entity-ident ::def-entity)
   (swap! db-type assoc-in [:entities entity-ident] entity-spec))
 
 
-(defn def-attr [db-type attr-ident attr-flags]
+(defn def-attr
+  "
+  Example:
+  `(def-attr db-type :person/ident #{:uid})`"
+  [db-type attr-ident attr-flags]
   (utils/assert-spec ::attr-ident attr-ident ::def-attr)
   (utils/assert-spec ::attr-flags attr-flags ::def-attr)
   (let [entity-name-key (keyword (namespace attr-ident))
