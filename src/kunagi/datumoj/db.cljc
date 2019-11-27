@@ -1,4 +1,6 @@
 (ns kunagi.datumoj.db)
 
 
-(defprotocol Db)
+(defprotocol Db
+  (schema [this])
+  (entities [this entity-ident]))
