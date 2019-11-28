@@ -8,9 +8,7 @@
    [kunagi.datumoj.db :as db]))
 
 
-(defrecord Db [schema datascript-db]
-    db/Db
-    (schema [this] schema))
+
 
 
 (defn datumoj-schema->ds-schema [datumoj-schema]
@@ -28,7 +26,11 @@
                    (-> attr :unique?) (assoc :db/unique :db.unique/identity)
                    (-> attr :ref?)  (assoc :db/valueType :db.type/ref)
                    (-> attr :ref-n?) (assoc :db/cardinality :db.cardinality/many)))))
-      ds-schema
+      (assoc ds-schema (keyword (str (-> datumoj-schema :ident name)
+                                     "."
+                                     (-> entity :ident name))
+                                "id")
+                       {:db/unique :db.unique/identity})
       (-> entity :attrs)))
    {}
    (-> datumoj-schema :entities)))
@@ -44,6 +46,7 @@
                                               :type :text-1
                                               :unique? true}]}]})
         ds-schema (datumoj-schema->ds-schema datumoj-schema)
+        _ (is (= {:db/unique :db.unique/identity} (-> ds-schema :test.show/id)))
         _ (is (= {:db/ident  :test.show/title
                   :db/unique :db.unique/identity}
                  (-> ds-schema :test.show/title)))
@@ -53,14 +56,21 @@
     ds-schema))
 
 
+(defrecord Db [schema datascript-db]
+  db/Db
+  (schema [this] schema)
+  (entities [this entity-ident] :TODO))
+
+
 (defn new-db
   ([datumoj-schema]
    (new-db datumoj-schema nil))
   ([datumoj-schema datoms]
    (let [ds-schema (datumoj-schema->ds-schema datumoj-schema)]
-     (if datoms
-       (d/init-db datoms ds-schema)
-       (d/empty-db ds-schema)))))
+     (->Db datumoj-schema
+           (if datoms
+             (d/init-db datoms ds-schema)
+             (d/empty-db ds-schema))))))
 
 
 (comment
@@ -74,14 +84,15 @@
 
   (def entity (get-in datumoj-schema [:entities 0]))
 
-  (let [schema {:ident    :tv
-                :entities [{:ident :actor
-                            :attrs [{:ident :name}]}
-                           {:ident :show
-                            :attrs [{:ident :title}]}]}]
-    (datumoj-schema->ds-schema schema))
-    ;;     db (new-db schema)]
-    ;; db)
+  (let [schema (schema/new-schema
+                {:ident    :tv
+                 :entities [{:ident :actor
+                             :attrs [{:ident :name}]}
+                            {:ident :show
+                             :attrs [{:ident :title}]}]})
+        schema (datumoj-schema->ds-schema schema)
+        db (new-db schema)]
+    db)
 
 
   (let [schema {}
