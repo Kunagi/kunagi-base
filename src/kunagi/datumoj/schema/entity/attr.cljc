@@ -12,18 +12,6 @@
                       :opt-un [::type ::unique?]))
 
 
-(defn type-ref-1? [attr])
-
-
-(defn type-ref-n? [attr]
-  (= :ref-n (-> attr :type)))
-
-
-(defn type-ref? [attr]
-  (or (type-ref-1? attr)
-      (type-ref-n? attr)))
-
-
 (defn complete [attr entity schema]
   (when-not (s/valid? ::attr attr)
     (throw (ex-info "Invalid attr"
@@ -32,6 +20,9 @@
                      :entity entity
                      :schema schema})))
   (cond-> attr
+
+    (nil? (-> attr :type))
+    (assoc :type :text-1)
 
     (= :ref-1 (-> attr :type))
     (assoc :ref-1? true
