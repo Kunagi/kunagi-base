@@ -9,7 +9,9 @@
 
 (defn- node-for-entity [entity]
   (let [singleton? (-> entity :singleton?)
-        label ((if singleton? entity/label-1 entity/label-n ) entity)]
+        label (if singleton?
+                (-> entity :texts :label-1)
+                (-> entity :texts :label-n))]
     {:redakti.node/type :leaf
      :redakti.node/text label
      :redakti.node/payload [:entity (-> entity :ident)]}))

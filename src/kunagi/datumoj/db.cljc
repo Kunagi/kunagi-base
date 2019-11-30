@@ -2,5 +2,4 @@
 
 
 (defprotocol Db
-  (schema [this])
-  (entities [this entity-ident]))
+  (schema [this]))

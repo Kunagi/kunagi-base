@@ -24,14 +24,6 @@
     (nil? (-> attr :type))
     (assoc :type :text-1)
 
-    (= :ref-1 (-> attr :type))
-    (assoc :ref-1? true
-           :ref? true)
-
-    (= :ref-n (-> attr :type))
-    (assoc :ref-n? true
-           :ref? true)
-
     (nil? (-> attr :texts :label-1))
     (assoc-in [:texts :label-1]
               (-> attr :ident name string/capitalize))

@@ -8,9 +8,6 @@
    [kunagi.datumoj.db :as db]))
 
 
-
-
-
 (defn datumoj-schema->ds-schema [datumoj-schema]
   (reduce
    (fn [ds-schema entity]
@@ -23,9 +20,15 @@
                                 (-> attr :ident name))]
           (assoc ds-schema attr-key
                  (cond-> {:db/ident attr-key}
-                   (-> attr :unique?) (assoc :db/unique :db.unique/identity)
-                   (-> attr :ref?)  (assoc :db/valueType :db.type/ref)
-                   (-> attr :ref-n?) (assoc :db/cardinality :db.cardinality/many)))))
+                   (-> attr :unique?)
+                   (assoc :db/unique :db.unique/identity)
+
+                   (contains? #{:ref-1 :ref-n} (-> attr :type))
+                   (assoc :db/valueType :db.type/ref)
+
+                   (= :ref-n (-> attr :type))
+                   (assoc :db/cardinality :db.cardinality/many)))))
+
       (assoc ds-schema (keyword (str (-> datumoj-schema :ident name)
                                      "."
                                      (-> entity :ident name))
@@ -58,8 +61,7 @@
 
 (defrecord Db [schema datascript-db]
   db/Db
-  (schema [this] schema)
-  (entities [this entity-ident] :TODO))
+  (schema [this] schema))
 
 
 (defn new-db
