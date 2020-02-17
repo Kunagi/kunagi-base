@@ -19,7 +19,12 @@
 
 
 (defn def-event [event]
-  (am/register-entity :event event))
+  (let [id (-> event :event/id)
+        module-name (am/module-name-by-entity-id id)
+        event-name (name id)
+        event (assoc event
+                     :event/ident (keyword module-name event-name))]
+    (am/register-entity :event event)))
 
 
 ;;; event-handler

@@ -62,9 +62,10 @@
 
 
 
-
-
-
+(defn module-name-by-entity-id [entity-id]
+  (-> (entity! [:module/namespace (namespace entity-id)])
+      :module/ident
+      name))
 
 
 (s/def ::entity-id qualified-keyword?)
@@ -179,11 +180,19 @@
    (tap> [:dbg ::register entity])
    (utils/assert-entity
     entity
-    {:req {(keyword (name type) "id") ::entity-id
-           (keyword (name type) "module") ::entity-ref}}
+    {:req {(keyword (name type) "id") ::entity-id}}
     (str "Invalid entity: " (pr-str entity) "."))
-   (let [db @!db
-         entity (assoc entity :entity/type type)]
+   (let [entity (assoc entity :entity/type type)
+
+         id (get entity (keyword (name type) "id"))
+         module-name (module-name-by-entity-id id)
+         entity (assoc entity
+                       (keyword (name type) "module") [:module/ident (keyword module-name)])]
+
+         ;; _ (when-not (= [:module/ident (keyword module-name)]
+         ;;                (get entity (keyword (name type) "module")))
+         ;;     (throw (ex-info "Auuu" {:entity entity})))]
+
      (assert-by-entity-model entity)
      (update-facts
       [entity]))))
