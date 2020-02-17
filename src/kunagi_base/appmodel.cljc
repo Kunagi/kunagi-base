@@ -184,14 +184,24 @@
     (str "Invalid entity: " (pr-str entity) "."))
    (let [entity (assoc entity :entity/type type)
 
-         id (get entity (keyword (name type) "id"))
+         type-name (name type)
+         id (get entity (keyword type-name "id"))
          module-name (module-name-by-entity-id id)
+         ident (or (get entity (keyword type-name "ident"))
+                   (keyword module-name (name id)))
          entity (assoc entity
-                       (keyword (name type) "module") [:module/ident (keyword module-name)])]
+                       (keyword type-name "module") [:module/ident (keyword module-name)]
+                       (keyword type-name "ident") ident)]
 
-         ;; _ (when-not (= [:module/ident (keyword module-name)]
-         ;;                (get entity (keyword (name type) "module")))
-         ;;     (throw (ex-info "Auuu" {:entity entity})))]
+
+         ;; _ (when ident
+         ;;     (when-not (or (= (keyword module-name (name id))
+         ;;                      ident)
+         ;;                   (= (keyword (name id))
+         ;;                      ident))
+         ;;        (throw (ex-info "Auuu on ident" {:expected (keyword module-name (name id))
+         ;;                                         :actual ident
+         ;;                                         :entity entity}))))]
 
      (assert-by-entity-model entity)
      (update-facts
