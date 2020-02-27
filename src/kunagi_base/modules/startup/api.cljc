@@ -54,13 +54,15 @@
   (assoc
    appinfo
    :app-name (or (-> appinfo :app-name)
-                 (-> appinfo :project :id))
+                 (-> appinfo :project :id)
+                 "noname")
    :app-version (or (-> appinfo :app-version)
-                    (str (-> appinfo :release :major)
+                    (str (or (-> appinfo :release :major) 0)
                          "."
-                         (-> appinfo :release :minor)))
-   :app-label (or (-> appinfo :app-version)
-                  (-> appinfo :project :name))))
+                         (or (-> appinfo :release :minor) 0)))
+   :app-label (or (-> appinfo :app-label)
+                  (-> appinfo :project :name)
+                  "Noname App")))
 
 
 (defn start! [initial-data]
