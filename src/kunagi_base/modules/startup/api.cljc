@@ -50,9 +50,23 @@
              :locale (-> (java.util.Locale/getDefault) .toString)}])))
 
 
+(defn- complete-appinfo [appinfo]
+  (assoc
+   appinfo
+   :app-name (or (-> appinfo :app-name)
+                 (-> appinfo :project :id))
+   :app-version (or (-> appinfo :app-version)
+                    (str (-> appinfo :release :major)
+                         "."
+                         (-> appinfo :release :minor)))
+   :app-label (or (-> appinfo :app-version)
+                  (-> appinfo :project :name))))
+
+
 (defn start! [initial-data]
   (log-environment-info!)
-  (let [db (-> {}
+  (let [initial-data (update initial-data :app/info complete-appinfo)
+        db (-> {}
                (utils/deep-merge initial-data)
                appconfig/init-app-db)]
     #?(:clj  (context/update-app-db #(-init-app-db % db))
