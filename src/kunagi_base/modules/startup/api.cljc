@@ -75,6 +75,18 @@
        :cljs (rf/dispatch-sync [::init db]))))
 
 
+#?(:cljs
+   (defn install-serviceworker! []
+     (let [config (appconfig/config)
+           install? (if (contains? config :service-worker?)
+                      (get config :service-worker?)
+                      true)]
+       (when install?
+         (if (-> js/navigator .-serviceWorker)
+           (js/navigator.serviceWorker.register "/serviceworker.js")
+           (tap> [:wrn ::serviceWorker-not-supported-by-browser]))))))
+
+
 ;;; re-frame
 
 (rf/reg-event-db
