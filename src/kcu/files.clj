@@ -1,5 +1,6 @@
 (ns kcu.files
   (:require
+   [clojure.edn :as edn]
    [clojure.java.io :as io]
 
    [puget.printer :as puget]))
@@ -33,9 +34,29 @@
                      {:entity entity
                       :dir dir})))))
 
+
 (defn write-entities
   ([dir entities]
    (write-entities dir entities true))
   ([dir entities pretty-print?]
    (doseq [entity entities]
      (write-entity dir entity pretty-print?))))
+
+
+(defn read-edn
+  [file]
+  (let [file (io/as-file file)]
+    (when (-> file .exists)
+      (-> file slurp edn/read-string))))
+
+
+(defn read-entities
+  "Reads .edn files from `dir`."
+  [dir]
+  (let [dir (io/as-file dir)]
+    (when (-> dir .exists)
+      (map (fn [file]
+             (-> file slurp edn/read-string))
+           (->> dir
+                .listFiles
+                (filter #(.endsWith (-> % .getName) ".edn")))))))
