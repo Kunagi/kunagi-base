@@ -1,0 +1,41 @@
+(ns kcu.files
+  (:require
+   [clojure.java.io :as io]
+
+   [puget.printer :as puget]))
+
+
+(defn write-edn
+  ([file data]
+   (write-edn file data true))
+  ([file data pretty-print?]
+   (let [file (io/as-file file)
+         dir (-> file .getParentFile)]
+     (when-not (-> dir .exists) (-> dir .mkdirs))
+     (spit file (if pretty-print?
+                  (puget/pprint-str data)
+                  data)))))
+
+
+(defn write-entity
+  "Writes `entity` as EDN to a file in `dir`.
+  The filename is created from entities `:id` or `:db/id`."
+  ([dir entity]
+   (write-entity dir entity true))
+  ([dir entity pretty-print?]
+   (if-let [id (or (get entity :id)
+                   (get entity :db/id))]
+     (write-edn
+      (str (-> dir io/as-file .getPath (str "/" (str id) ".edn")))
+      entity
+      pretty-print?)
+     (throw (ex-info "write-entity failed. Missing `:id` or `:db/id` in entity."
+                     {:entity entity
+                      :dir dir})))))
+
+(defn write-entities
+  ([dir entities]
+   (write-entities dir entities true))
+  ([dir entities pretty-print?]
+   (doseq [entity entities]
+     (write-entity dir entity pretty-print?))))
