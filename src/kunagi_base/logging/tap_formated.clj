@@ -10,6 +10,13 @@
 
 (defonce lock :lock)
 
+
+(defn- print-payload [payload]
+  (if (instance? Throwable payload)
+    (aviso/write-exception payload)
+    (puget/cprint payload {:option :here})))
+
+
 (defn log-record
   [{:as record :keys [source-ns source-name level payload]}]
   (locking lock
@@ -24,9 +31,7 @@
        (level-bg (c/white (c/bold (str " " source-name " "))))
        (c/white source-ns))
       (if payload
-        (if (instance? Throwable payload)
-          (aviso/write-exception payload)
-          (puget/cprint payload {:option :here}))
+        (print-payload payload)
         (println))
       (println))))
 
