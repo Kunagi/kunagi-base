@@ -3,9 +3,12 @@
   #?(:cljs (:require-macros [kcu.bapp]))
   (:require
    [re-frame.core :as rf]
+   [ajax.core :as ajax]
 
    [kcu.utils :as u]))
 
+;; FIXME updates on parent lenses must be prevented
+;; FIXME updates on child lenses with durable parents
 ;; TODO spec and validation for lenses
 ;; TODO spec for lense values
 
@@ -67,12 +70,23 @@
   (contains? @!loaded-lenses (-> lense :id)))
 
 
+(defn create-default-value! [lense]
+  (when-let [default-value (-> lense :default-value)]
+    (let [default-value (if (fn? default-value)
+                          (default-value)
+                          default-value)]
+      (when (-> lense :durable?)
+        (store! lense default-value))
+      default-value)))
+
+
 (defn- load! [lense]
   (let [value #?(:cljs (-> js/window
                            .-localStorage
                            (.getItem (storage-key lense))
                            u/decode-edn)
-                 :clj (throw (ex-info "load! not implemented" {:lense lense})))]
+                 :clj (throw (ex-info "load! not implemented" {:lense lense})))
+        value (or value (create-default-value! lense))]
     (swap! !loaded-lenses conj (-> lense :id))
     (tap> [:dbg ::load! {:lense (-> lense :id)
                          :value value}])
@@ -97,7 +111,8 @@
         old-value (if (and durable?
                            (not (loaded? lense)))
                     (load! lense)
-                    (get-in db path))
+                    (or (get-in db path)
+                        (create-default-value! lense)))
         new-value (apply f old-value args)]
     (when (and durable? (not= old-value new-value))
       (store! lense new-value))
@@ -143,9 +158,9 @@
   [sym lense]
   (let [k (keyword (str sym))
         id (keyword (str (ns-name *ns*)) (str sym))]
-    `(defonce ~sym (reg-lense (merge {:id ~id
-                                      :key ~k}
-                                     ~lense)))))
+    `(def ~sym (reg-lense (merge {:id ~id
+                                  :key ~k}
+                                 ~lense)))))
 
 
 (rf/reg-event-db
@@ -159,3 +174,85 @@
  ::read
  (fn [db [_ lense]]
    (read db lense)))
+
+
+
+;;; default lenses
+
+
+(def bapp
+  (reg-lense {:id ::bapp
+              :key :bapp}))
+
+
+
+;;; errors
+
+(def errors
+  (reg-lense {:id ::errors
+              :key :errors
+              :parent bapp}))
+
+
+;;; anti-forgery
+
+
+(defonce !anti-forgery-token (atom nil))
+
+(defn POST
+  [endpoint options]
+  ;; FIXME re-request token if POST response contains "invalid anti-forgery token"
+  (if-let [anti-forgery-token @!anti-forgery-token]
+    (ajax/POST
+     endpoint
+     (-> options
+         (assoc-in [:headers "X-CSRF-Token"] anti-forgery-token)))
+    (ajax/GET
+     "/api/anti-forgery-token"
+     {:handler (fn [token]
+                 (tap> [:!!! ::anti-forgery-token token])
+                 (reset! !anti-forgery-token token)
+                 (POST endpoint options))})))
+
+;;; conversation
+
+
+(def conversation
+  (reg-lense {:id ::conversation
+              :key :conversation
+              :parent bapp}))
+
+
+(def conversation-id
+  (reg-lense {:id ::conversation-id
+              :key :id
+              :parent conversation
+              :durable? true
+              :default-value u/random-uuid-string}))
+
+
+(defn transmit-messages-to-server!
+  [db messages]
+  (POST
+   "/api/conversation"
+   {
+    :format :text
+    :params {:conversation (read db conversation-id)
+             :messages messages}
+    ;; :body (u/encode-edn {:conversation (read db conversation-id)
+    ;;                      :messages messages})
+    :handler (fn [response]
+               (tap> [:dbg ::messages-delivered-to-server
+                      {:response response
+                       :messages messages}]))})
+  db)
+
+(reg-init-f
+ ::continue-conversation
+ (fn [db]
+   (transmit-messages-to-server! db [[:conversation/continue]])
+   db))
+
+
+;; (defn fetch-messages-from-server
+;;   [])

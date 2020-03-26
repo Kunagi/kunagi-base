@@ -5,6 +5,16 @@
    [#?(:cljs cljs.reader :clj clojure.edn) :refer [read-string]]))
 
 
+(defn random-uuid-string []
+  (str #?(:cljs (random-uuid)
+          :clj  (java.util.UUID/randomUUID))))
+
+
+(defn current-time-millis []
+  #?(:cljs (.getTime (js/Date.))
+     :clj  (System/currentTimeMillis)))
+
+
 (defn getm
   "get mandatory"
   ([m k]

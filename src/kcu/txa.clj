@@ -1,10 +1,36 @@
 (ns kcu.txa
   "Transaction Aggregate"
-  (:refer-clojure :exclude [read load]))
+  (:refer-clojure :exclude [read load])
+  (:require
+   [kcu.files :as files]))
 
 
 (defn on-agent-error [id _agent ex]
   (tap> [:err ::on-db-agent-error id ex]))
+
+
+(defn- default-store-f [txa value]
+  (let [file (-> txa :options :file)]
+    (tap> [:dbg ::store file])
+    (files/write-edn file value)))
+
+
+(defn- default-load-f [txa]
+  (let [file (-> txa :options :file)]
+    (tap> [:dbg ::load file])
+    (files/read-edn file)))
+
+
+(defn- complete-options [options]
+  (cond-> options
+
+          ;; default store-f
+          (and (get options :file) (not (get options :store-f)))
+          (assoc :store-f default-store-f)
+
+          ;; default load-f
+          (and (get options :file) (not (get options :load-f)))
+          (assoc :load-f default-load-f)))
 
 
 (defn new-txa
@@ -16,7 +42,7 @@
                   :transaction-exceptions '()}
                  :error-mode :continue
                  :error-handler (partial on-agent-error id))
-   :options options})
+   :options (complete-options options)})
 
 
 (defmacro def-txa
