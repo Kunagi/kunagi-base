@@ -3,19 +3,17 @@
    [clojure.edn :as edn]
    [clojure.java.io :as io]
 
-   [puget.printer :as puget]))
+   [kcu.utils :as u]))
 
 
 (defn write-edn
   ([file data]
    (write-edn file data true))
-  ([file data pretty-print?]
+  ([file data pretty?]
    (let [file (io/as-file file)
          dir (-> file .getParentFile)]
      (when-not (-> dir .exists) (-> dir .mkdirs))
-     (spit file (if pretty-print?
-                  (puget/pprint-str data)
-                  data)))))
+     (spit file (u/encode-edn data pretty?)))))
 
 
 (defn write-entity

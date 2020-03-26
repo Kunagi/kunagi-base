@@ -1,6 +1,8 @@
 (ns kcu.utils
   (:require
-   [clojure.spec.alpha :as s]))
+   [clojure.pprint :refer [pprint]]
+   [clojure.spec.alpha :as s]
+   [#?(:cljs cljs.reader :clj clojure.edn) :refer [read-string]]))
 
 
 (defn getm
@@ -24,4 +26,16 @@
                         :spec spec}))))))
 
 
-;; (getm {:a :b} :c)
+(defn decode-edn
+  [s]
+  (when s
+    (read-string s)))
+
+
+(defn encode-edn
+  ([value]
+   (pr-str value))
+  ([value pretty?]
+   (if pretty?
+     (with-out-str (pprint value))
+     (pr-str value))))
