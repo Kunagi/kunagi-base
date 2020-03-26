@@ -5,6 +5,37 @@
 
    [kcu.utils :as u]))
 
+;; TODO :durable? with localStorage
+
+;;; init-fns
+
+
+(defonce !init-fs (atom {}))
+
+
+(defn reg-init-f
+  [id f]
+  (swap! !init-fs assoc id f))
+
+
+(defn init []
+  (rf/dispatch-sync [::init]))
+
+
+(rf/reg-event-db
+ ::init
+ (fn [db]
+   (reduce (fn [db [id init-f]]
+             (try
+               (init-f db)
+               (catch :default ex
+                 (tap> [:err ::init-f-failed {:id id :init-f init-f :ex ex}])
+                 db)))
+           db @!init-fs)))
+
+
+;;; lenses
+
 
 (defn lense-full-path
   "Full path to `lense` value in `app-db`."
