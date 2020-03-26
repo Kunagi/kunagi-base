@@ -1,4 +1,5 @@
 (ns kcu.utils
+  (:refer-clojure :exclude [read-string])
   (:require
    [clojure.pprint :refer [pprint]]
    [clojure.spec.alpha :as s]
