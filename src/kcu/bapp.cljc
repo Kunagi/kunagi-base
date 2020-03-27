@@ -13,6 +13,12 @@
 ;; TODO spec and validation for lenses
 ;; TODO spec for lense values
 
+
+(def !send-message-to-server
+  (atom (fn [_db _message]
+          (tap> [:!!! ::send-message-to-server :not-implemented]))))
+
+
 ;;; init-fns
 
 
@@ -287,6 +293,9 @@
   [db messages]
   (let [conversation-id (read db conversation-id)]
     (u/assert-spec ::conversation-id conversation-id ::transmit-messages-to-server!)
+    (@!send-message-to-server db [::conversation-messages
+                                  {:conversation-id conversation-id
+                                   :messages messages}])
     (POST
      "/api/post-messages"
      {
