@@ -4,18 +4,13 @@
   (:require
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
-   [bindscript.api :refer [def-bindscript]]))
+   [bindscript.api :refer [def-bindscript]]
+   [kcu.utils :as kcu]))
 
 
-(defn new-uuid []
-  (str #?(:cljs (random-uuid)
-          :clj  (java.util.UUID/randomUUID))))
+(def new-uuid kcu/random-uuid-string)
 
-
-(defn current-time-millis []
-  #?(:cljs (.getTime (js/Date.))
-     :clj  (System/currentTimeMillis)))
-
+(def current-time-millis kcu/current-time-millis)
 
 ;;; maps
 
@@ -44,25 +39,7 @@
 ;; (defn assert [form otherwise-msg & values])
 ;;   ;; FIXME
 
-(defn assert-spec
-  ([spec value]
-   (assert-spec spec value nil))
-  ([spec value otherwise-msg]
-   (if (s/valid? spec value)
-     value
-     (throw (ex-info (str (when otherwise-msg
-                            (if (qualified-keyword? otherwise-msg)
-                              (str "Assertion in "
-                                   (pr-str otherwise-msg)
-                                   " failed.\n")
-                              (str otherwise-msg "\n")))
-                          "Value does not conform to spec "
-                          spec
-                          ": "
-                          (pr-str value))
-                     {:spec spec
-                      :value value
-                      :spec-explain (s/explain-str spec value)})))))
+(def assert-spec kcu/assert-spec)
 
 
 ;;; search

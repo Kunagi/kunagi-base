@@ -6,7 +6,7 @@
 
 
 (defn on-agent-error [id _agent ex]
-  (tap> [:err ::on-db-agent-error id ex]))
+  (tap> [:err ::on-agent-error ex]))
 
 
 (defn- default-store-f [txa value]
@@ -57,37 +57,62 @@
 
 
 (defn- load-payload [txa]
-  (when-let [load-f (-> txa :options :load-f)]
-    (try
-      (load-f txa)
-      (catch Exception ex
-        (throw (ex-info (str "Loading aggregate `"
-                             (-> txa :id)
-                             "` failed.")
-                        {:txa txa}
-                        ex))))))
+  (if-let [payload (when-let [load-f (-> txa :options :load-f)]
+                     (try
+                       (load-f txa)
+                       (catch Exception ex
+                         (throw (ex-info (str "Loading aggregate `"
+                                              (-> txa :id)
+                                              "` failed.")
+                                         {:txa txa}
+                                         ex)))))]
+    payload
+    (when-let [constructor (-> txa :options :constructor)]
+      (constructor txa))))
 
 
-(defn- load
-  [txa]
-  (let [agent (-> txa :agent)]
-    (send-off
-     (-> txa :agent)
+;; (defn- load
+;;   [txa]
+;;   (try
+;;     (let [agent (-> txa :agent)]
+;;       (send-off
+;;        (-> txa :agent)
+;;        (fn [value]
+;;          (if (-> value :loaded?)
+;;            value
+;;            (try
+;;              (-> value
+;;                  (assoc :payload (load-payload txa))
+;;                  (assoc :loaded? true))
+;;              (catch Exception ex
+;;                (-> value
+;;                    (assoc :load-exception ex)))))))
+;;       (await agent)
+;;       (let [value (-> agent deref)]
+;;         (when-let [ex (-> value :load-exception)]
+;;           (throw ex))
+;;         (-> value :payload)))
+;;     (catch Exception ex
+;;       (throw (ex-info (str "Loading txa `" (-> txa :id) "` failed.")
+;;                       {:txa txa}
+;;                       ex)))))
+
+
+(declare transact)
+
+(defn read-and-deliver
+  [txa value-promise]
+  (try
+    (transact
+     txa
      (fn [value]
-       (if (-> value :loaded?)
-         value
-         (try
-           (-> value
-               (assoc :payload (load-payload txa))
-               (assoc :loaded? true))
-           (catch Exception ex
-             (-> value
-                 (assoc :load-exception ex)))))))
-    (await agent)
-    (let [value (-> agent deref)]
-      (when-let [ex (-> value :load-exception)]
-        (throw ex))
-      (-> value :payload))))
+       (deliver value-promise value)
+       value))
+    value-promise
+    (catch Exception ex
+      (throw (ex-info (str "read-and-deliver in txa `" (-> txa :id) "` failed.")
+                      {:txa txa}
+                      ex)))))
 
 
 (defn read
@@ -95,19 +120,23 @@
   (let [value (-> txa :agent deref)]
     (if (-> value :loaded?)
       (-> value :payload)
-      (load txa))))
+      (let [value-promise (promise)]
+        (read-and-deliver txa value-promise)
+        @value-promise))))
 
 
 (defn- store-new-payload [txa old-value new-value]
   (when-let [store-f (-> txa :options :store-f)]
-    (when (not= old-value new-value)
-      (try
-        (store-f txa new-value)
-        (catch Exception ex
-          (throw (ex-info (str "Storing new value failed.")
-                          {:store-f store-f
-                           :new-value new-value}
-                          ex)))))))
+    (let [new-value (reduce dissoc new-value (-> txa :options :store-exclude-keys))
+          old-value (reduce dissoc old-value (-> txa :options :store-exclude-keys))]
+      (when (not= old-value new-value)
+        (try
+          (store-f txa new-value)
+          (catch Exception ex
+            (throw (ex-info (str "Storing new value failed.")
+                            {:store-f store-f
+                             :new-value new-value}
+                            ex))))))))
 
 
 (defn transact

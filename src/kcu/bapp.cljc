@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [read])
   #?(:cljs (:require-macros [kcu.bapp]))
   (:require
+   [clojure.spec.alpha :as s]
    [re-frame.core :as rf]
    [ajax.core :as ajax]
 
@@ -27,16 +28,6 @@
   (rf/dispatch-sync [::init]))
 
 
-(rf/reg-event-db
- ::init
- (fn [db]
-   (reduce (fn [db [id init-f]]
-             (try
-               (init-f db)
-               (catch #?(:clj Exception :cljs :default) ex
-                 (tap> [:err ::init-f-failed {:id id :init-f init-f :ex ex}])
-                 db)))
-           db @!init-fs)))
 
 
 ;;; lenses
@@ -104,6 +95,8 @@
   (get-in db (lense-full-path lense)))
 
 
+(declare update-lense-subscription)
+
 (defn swap
   [db lense f & args]
   (let [durable? (-> lense :durable?)
@@ -113,10 +106,15 @@
                     (load! lense)
                     (or (get-in db path)
                         (create-default-value! lense)))
-        new-value (apply f old-value args)]
+        new-value (apply f old-value args)
+        new-value (if-let [setter (-> lense :setter)]
+                    (setter new-value)
+                    new-value)]
     (when (and durable? (not= old-value new-value))
       (store! lense new-value))
-    (assoc-in db path new-value)))
+    (-> db
+       (assoc-in path new-value)
+       (update-lense-subscription lense))))
 
 
 (defn reset
@@ -133,6 +131,8 @@
   (rf/dispatch [::reset lense new-value]))
 
 
+
+
 (defn reg-lense [lense]
   (try
     (let [id (u/getm lense :id)
@@ -144,7 +144,15 @@
       (when (and durable? auto-load?)
         (reg-init-f [::load id]
                     (fn [db]
-                      (assoc-in db (lense-full-path lense) (load! lense)))))
+                      (-> db
+                          (assoc-in (lense-full-path lense) (load! lense))
+                          (update-lense-subscription lense)))))
+
+      (when-not (and durable? auto-load?)
+        (when-let [default-value-f (u/as-optional-fn (get lense :default-value))]
+          (reg-init-f [::set-default-value id]
+                      (fn [db]
+                        (assoc-in db (lense-full-path lense) (default-value-f))))))
 
       lense)
     (catch #?(:clj Exception :cljs :default) ex
@@ -210,11 +218,16 @@
     (ajax/GET
      "/api/anti-forgery-token"
      {:handler (fn [token]
-                 (tap> [:!!! ::anti-forgery-token token])
                  (reset! !anti-forgery-token token)
                  (POST endpoint options))})))
 
+
+
 ;;; conversation
+
+
+(s/def ::conversation-id (s/and string?
+                                #(> (count %) 8)))
 
 
 (def conversation
@@ -226,33 +239,172 @@
 (def conversation-id
   (reg-lense {:id ::conversation-id
               :key :id
+              :parent conversation}))
+
+
+
+(def server-subscriptions
+  (reg-lense {:id ::server-subscriptions
+              :key :server-subscriptions
               :parent conversation
-              :durable? true
-              :default-value u/random-uuid-string}))
+              :default-value {}}))
 
 
-(defn transmit-messages-to-server!
-  [db messages]
-  (POST
-   "/api/conversation"
-   {
-    :format :text
-    :params {:conversation (read db conversation-id)
-             :messages messages}
-    ;; :body (u/encode-edn {:conversation (read db conversation-id)
-    ;;                      :messages messages})
-    :handler (fn [response]
-               (tap> [:dbg ::messages-delivered-to-server
-                      {:response response
-                       :messages messages}]))})
-  db)
+(defn server-subscription-by-query
+  [db query]
+  (-> db
+      (read server-subscriptions)
+      vals
+      (->> (filter (fn [subscription] (= query (-> subscription :query)))))
+      first))
 
-(reg-init-f
- ::continue-conversation
- (fn [db]
-   (transmit-messages-to-server! db [[:conversation/continue]])
-   db))
+
+
+
+
+;; (reg-init-f
+;;  ::continue-conversation
+;;  (fn [db]
+;;    (transmit-messages-to-server! db [])
+;;    db))
 
 
 ;; (defn fetch-messages-from-server
 ;;   [])
+
+
+(defn- run-init-fs [db]
+  (reduce (fn [db [id init-f]]
+            (try
+              (init-f db)
+              (catch #?(:clj Exception :cljs :default) ex
+                (tap> [:err ::init-f-failed {:id id :init-f init-f :ex ex}])
+                db)))
+          db @!init-fs))
+
+
+(defn transmit-messages-to-server!
+  [db messages]
+  (let [conversation-id (read db conversation-id)]
+    (u/assert-spec ::conversation-id conversation-id ::transmit-messages-to-server!)
+    (POST
+     "/api/post-messages"
+     {
+      :format :text
+      :params {:conversation conversation-id
+               :messages messages}
+      ;; :body (u/encode-edn {:conversation (read db conversation-id)
+      ;;                      :messages messages})
+      :handler (fn [response]
+                 (tap> [:dbg ::messages-delivered-to-server
+                        {:response response
+                         :messages messages}]))})
+    db))
+
+
+(defn transmit-message-to-server!
+  [db message]
+  (transmit-messages-to-server! db [message]))
+
+
+(defn poll-messages-from-server!
+  [db]
+  (let [conversation-id (read db conversation-id)]
+    (u/assert-spec ::conversation-id conversation-id ::poll-messages-from-server!)
+    (ajax/GET
+     "/api/messages"
+     {:params {:conversation conversation-id
+               :wait true}
+      :handler (fn [response]
+                 (rf/dispatch [::handle-poll-messages-from-server-response response]))
+      :error-handler (fn [response]
+                       (tap> [:wrn ::poll-messages-from-server!-failed response])
+                       (u/invoke-later! 1000 #(rf/dispatch [::restart-conversation])))})
+    db))
+
+
+(defn- handle-query-response
+  [db {:keys [query response]}]
+  (if-let [lense (:lense (server-subscription-by-query db query))]
+    (reset db lense response)
+    (do
+      (tap> [:wrn ::no-lense-found-for-query query])
+      db)))
+
+(defn- handle-message-from-server
+  [db message]
+  (tap> [:dbg ::message-from-server message])
+  (case (-> message :type)
+    :query-response (handle-query-response db message)
+    (do
+      (tap> [:wrn ::handle-message-from-server :unsupported-message message])
+      db)))
+
+(rf/reg-event-db
+ ::handle-poll-messages-from-server-response
+ (fn [db [_ response]]
+   (let [messages (u/decode-edn response)
+         db (reduce handle-message-from-server db messages)]
+     (poll-messages-from-server! db)
+     db)))
+
+
+(defn transmit-subscriptions-to-server!
+  [db]
+  (let [queries (-> db
+                    (read server-subscriptions)
+                    vals
+                    (->> (remove (fn [sub] (not (-> sub :query))))
+                         (map :query))
+                    (into #{}))]
+    (transmit-message-to-server!
+     db
+     {:type :subscriptions
+      :subscriptions queries})))
+
+
+(defn update-server-subscriptions
+  [db new-subscriptions]
+  ;; FIXME optimize: check if changed
+  (let [subscriptions (read db server-subscriptions)
+        subscriptions (merge subscriptions new-subscriptions)
+        db (reset db server-subscriptions subscriptions)]
+    (transmit-subscriptions-to-server! db)
+    db))
+
+(rf/reg-event-db
+ ::update-server-subscriptions
+ (fn [db [_ new-subscriptions]]
+   (update-server-subscriptions db new-subscriptions)))
+
+(defn update-lense-subscription
+  [db lense]
+  (if-let [query-f (u/as-optional-fn (get lense :server-subscription-query))]
+    (update-server-subscriptions
+     db
+     {[:lense (-> lense :id)]
+      {:query (query-f db lense)
+       :lense lense}})
+    db))
+
+
+(defn start-conversation
+  [db]
+  (let [db (reset db conversation-id (u/random-uuid-string))]
+    (poll-messages-from-server! db)
+    (transmit-subscriptions-to-server! db)
+    db))
+
+
+(rf/reg-event-db
+ ::restart-conversation
+ (fn [db _]
+   (start-conversation db)))
+
+
+(rf/reg-event-db
+ ::init
+ (fn [db]
+   (-> db
+       start-conversation
+       run-init-fs)))
