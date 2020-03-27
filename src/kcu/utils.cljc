@@ -1,4 +1,5 @@
 (ns kcu.utils
+  #?(:cljs (:require-macros [kcu.utils]))
   (:refer-clojure :exclude [read-string])
   (:require
    [clojure.pprint :refer [pprint]]
@@ -70,10 +71,65 @@
                       :spec-explain (s/explain-str spec value)})))))
 
 
+(defn assert-entity!
+  [entity req opt subject-description]
+  (when-not entity
+    (throw (ex-info (str "Asserting entity "
+                         subject-description
+                         " failed. "
+                         "Entity is `nil`.")
+                    nil)))
+  (when-not (map? entity)
+    (throw (ex-info (str "Asserting entity "
+                         subject-description
+                         " failed. "
+                         "Entity is not a map: `"
+                         entity
+                         "`.")
+                    nil)))
+  (doseq [k (keys req)]
+    (when-not (contains? entity k)
+      (throw (ex-info (str "Asserting entity "
+                           subject-description
+                           " failed. "
+                           "Missing mandatory attribute `"
+                           k
+                           "`.")
+                      {:entity entity
+                       :missing-key k
+                       :req req
+                       :opt opt}))))
+  (doseq [[k spec] (into req opt)]
+    (when-let [v (get entity k)]
+      (when-not (s/valid? spec v)
+        (throw (ex-info (str "Asserting entity "
+                             subject-description
+                             " failed. "
+                             "Value for attribute `"
+                             k
+                             "` does not conform to spec `"
+                             spec
+                             "`: `" v "`.")
+                        {:entity entity
+                         :key k
+                         :invalid-value v
+                         :spec spec
+                         :spec-explain (s/explain-str spec v)
+                         :req req
+                         :opt opt})))))
+  entity)
+
+
+(defmacro assert-entity
+  [& [entity req opt]]
+  ;; TODO get callers function name
+  (let [subject (str entity " in `" *ns* "`")]
+    `(assert-entity! ~entity ~req ~opt ~subject)))
+
+
 (defn decode-edn
   [s]
-  (when s
-    (read-string s)))
+  (when s (read-string s)))
 
 
 (defn encode-edn
