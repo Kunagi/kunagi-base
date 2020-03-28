@@ -13,9 +13,9 @@
 
 (def color-command "#ffe0b2")
 (def color-event "#bbdefb")
+(def color-projection "#e1bee7")
 (def color-projection-step "#f5f5f5")
-(def color-projection-value "#e1bee7")
-
+(def color-context "#c8e6c9")
 
 (defn Sidescroller
   [elements]
@@ -38,9 +38,8 @@
                :grid-template-columns "min-content auto"
                :grid-gap (theme/spacing 1)
                :align-items :baseline}}
-      [:div
-       {:style {:font-weight :bold
-                :min-width "60px"
+      [:div.b
+       {:style {:min-width "60px"
                 :white-space :nowrap}}
        [muic/Data k]]
       [:div
@@ -56,16 +55,15 @@
 
 (defn ProjectionRefText [[projector entity]]
   [:div
-   projector " " [:span {:style {:font-weight :bold}} entity]])
-
+   [:span.b projector]
+   " "
+   entity])
 
 (defn CommandCard [[command-name command-args]]
   [muic/Card
    {:style {:background-color color-command}}
    [muic/Stack-1
-    [:div
-     {:style {:font-weight :bold}}
-     command-name]
+    [:div.b command-name]
     [Map-As-Stack command-args]]])
 
 
@@ -73,15 +71,13 @@
   [muic/Card
    {:style {:background-color color-event}}
    [muic/Stack-1
-    [:div
-     {:style {:font-weight :bold}}
-     event-name]]
-   [Map-As-Stack event-args]])
+    [:div.b event-name]
+    [Map-As-Stack event-args]]])
 
 
 (defn ProjectionDataCard [projection]
   [muic/Card
-   {:style {:background-color color-projection-value}}
+   {:style {:background-color color-projection}}
    [Map-As-Stack projection]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -119,7 +115,9 @@
     [muic/Stack-1
      [CommandCard command]
      (when-let [exception (-> step :command-exception)]
-       [muic/ExceptionCard exception])]))
+       [muic/ExceptionCard exception])
+     (when-let [ex (-> step :projection-exception)]
+       [muic/ExceptionCard ex])]))
 
 
 (defn Aggregate-Step-Events [step]
@@ -128,8 +126,10 @@
      {:spacing (theme/spacing 2)}
      (for [[projection-ref events] event-sets]
        ^{:key projection-ref}
-       [muic/Stack-1
-        [ProjectionRefText projection-ref]
+       [muic/Stack
+        [muic/Card
+         {:style {:background-color color-projection}}
+         [ProjectionRefText projection-ref]]
         (for [[event-name args :as event] events]
           ^{:key event}
           [EventCard event-name args])])]))
@@ -138,8 +138,21 @@
 (defn Aggregate-Step-Inputs [step]
   [:div
    (into
-    [muic/Stack]
-    (map (fn [input] [muic/Data input])
+    [muic/Stack-1]
+    (map (fn [input]
+           (case (if (vector? input)
+                   (first input)
+                   input)
+
+             :projection
+             [muic/Card
+              {:style {:background-color color-projection}}
+              [ProjectionRefText (second input)]]
+
+             [muic/Card
+              {:style {:background-color color-context}}
+              [muic/Data input]]))
+
          (-> step :inputs)))])
 
 
@@ -150,26 +163,13 @@
      [Map-As-Stack effects]]))
 
 
-(defn Aggregate-Step-Projections [step]
-  (let [refs (-> step :aggregate :projections keys)]
-    [:div
-     (when-let [ex (get-in step [:projection-exception])]
-       [muic/ExceptionCard ex])
-     [muic/Stack-1
-      (for [[projector entity :as ref] (sort refs)]
-        ^{:key ref}
-        [muic/Card
-         {:style {:background-color color-projection-value}}
-         [ProjectionRefText ref]])]]))
-
-
 (defn Aggregate-Step-Projection [[projector-id entity-id :as ref] step]
   (let [projection (get-in step [:aggregate :projections ref])]
     [muic/Stack-1
      [:div
       {:style {:color (theme/color-primary-main)}}
       projector-id " "
-      [:span {:style {:font-weight :bold}} entity-id]]
+      [:span.b entity-id]]
      [:div
       (for [pstep (-> projection :flow)]
         ^{:key (-> pstep :index)}
@@ -216,8 +216,6 @@
         [Aggregate-Command-Flow-Header "Effects"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
         [Aggregate-Command-Flow-Header "Projections"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-Projections]
-        [Aggregate-Command-Flow-Header "Projection Events"]
         (for [ref (sort projection-refs)]
           ^{:key ref}
           [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection ref)])]]]]))
