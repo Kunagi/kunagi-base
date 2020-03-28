@@ -54,22 +54,30 @@
    " " text " "])
 
 
+(defn ProjectionRefText [[projector entity]]
+  [:div
+   projector " " [:span {:style {:font-weight :bold}} entity]])
+
+
 (defn CommandCard [[command-name command-args]]
   [muic/Card
    {:style {:background-color color-command}}
-   [:div
-    {:style {:font-weight :bold}}
-    command-name]
-   [muic/Data command-args]])
+   [muic/Stack-1
+    [:div
+     {:style {:font-weight :bold}}
+     command-name]
+    [Map-As-Stack command-args]]])
 
 
 (defn EventCard [event-name event-args]
   [muic/Card
    {:style {:background-color color-event}}
-   [:div
-    {:style {:font-weight :bold}}
-    event-name]
-   [muic/Data event-args]])
+   [muic/Stack-1
+    [:div
+     {:style {:font-weight :bold}}
+     event-name]]
+   [Map-As-Stack event-args]])
+
 
 (defn ProjectionDataCard [projection]
   [muic/Card
@@ -114,6 +122,19 @@
        [muic/ExceptionCard exception])]))
 
 
+(defn Aggregate-Step-Events [step]
+  (let [event-sets (-> step :effects :events)]
+    [muic/Stack
+     {:spacing (theme/spacing 2)}
+     (for [[projection-ref events] event-sets]
+       ^{:key projection-ref}
+       [muic/Stack-1
+        [ProjectionRefText projection-ref]
+        (for [[event-name args :as event] events]
+          ^{:key event}
+          [EventCard event-name args])])]))
+
+
 (defn Aggregate-Step-Inputs [step]
   [:div
    (into
@@ -123,8 +144,8 @@
 
 
 (defn Aggregate-Step-Effects [step]
-  (let [effects (-> step :effects)]
-        ;; effects (dissoc effects :events)]
+  (let [effects (-> step :effects)
+        effects (dissoc effects :events)]
     [:div
      [Map-As-Stack effects]]))
 
@@ -135,12 +156,11 @@
      (when-let [ex (get-in step [:projection-exception])]
        [muic/ExceptionCard ex])
      [muic/Stack-1
-      (for [[projector entity :as ref] refs]
+      (for [[projector entity :as ref] (sort refs)]
         ^{:key ref}
         [muic/Card
          {:style {:background-color color-projection-value}}
-         [:div
-          projector " " [:span {:style {:font-weight :bold}} entity]]])]]))
+         [ProjectionRefText ref]])]]))
 
 
 (defn Aggregate-Step-Projection [[projector-id entity-id :as ref] step]
@@ -189,12 +209,15 @@
        [:tbody
         [Aggregate-Command-Flow-Header "Command"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Command]
+        [Aggregate-Command-Flow-Header "Events"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Events]
         [Aggregate-Command-Flow-Header "Used from Context"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
         [Aggregate-Command-Flow-Header "Effects"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
         [Aggregate-Command-Flow-Header "Projections"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Projections]
+        [Aggregate-Command-Flow-Header "Projection Events"]
         (for [ref (sort projection-refs)]
           ^{:key ref}
           [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection ref)])]]]]))
