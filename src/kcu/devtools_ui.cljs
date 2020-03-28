@@ -38,11 +38,14 @@
                :grid-template-columns "min-content auto"
                :grid-gap (theme/spacing 1)
                :align-items :baseline}}
-      [:div {:style {:font-weight :bold
-                     :min-width "60px"
-                     :white-space :nowrap}}
+      [:div
+       {:style {:font-weight :bold
+                :min-width "60px"
+                :white-space :nowrap}}
        [muic/Data k]]
-      [muic/Data (get m k)]])])
+      [:div
+       {:style {:min-width "100px"}}
+       [muic/Data (get m k)]]])])
 
 
 (defn Label [text]
@@ -120,10 +123,24 @@
 
 
 (defn Aggregate-Step-Effects [step]
-  (let [effects (-> step :effects)
-        effects (dissoc effects :events)]
+  (let [effects (-> step :effects)]
+        ;; effects (dissoc effects :events)]
     [:div
      [Map-As-Stack effects]]))
+
+
+(defn Aggregate-Step-Projections [step]
+  (let [refs (-> step :aggregate :projections keys)]
+    [:div
+     (when-let [ex (get-in step [:projection-exception])]
+       [muic/ExceptionCard ex])
+     [muic/Stack-1
+      (for [[projector entity :as ref] refs]
+        ^{:key ref}
+        [muic/Card
+         {:style {:background-color color-projection-value}}
+         [:div
+          projector " " [:span {:style {:font-weight :bold}} entity]]])]]))
 
 
 (defn Aggregate-Step-Projection [[projector-id entity-id :as ref] step]
@@ -177,6 +194,7 @@
         [Aggregate-Command-Flow-Header "Effects"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
         [Aggregate-Command-Flow-Header "Projections"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Projections]
         (for [ref (sort projection-refs)]
           ^{:key ref}
           [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection ref)])]]]]))
