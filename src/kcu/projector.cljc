@@ -53,6 +53,16 @@
   (let [[event-name event-args] event
         projector-id (-> projector :id)
         handler (get-in projector [:handlers event-name])
+        _ (when-not handler
+            (throw (ex-info (str "Projecting event `"
+                                 event-name
+                                 "` with projector `"
+                                 projector-id
+                                 "` failed. No handler for event.")
+                            {:projector-id projector-id
+                             :unknown-event event
+                             :known-events (-> projector :handlers keys)
+                             :projection projection})))
         f (get handler :f)
         projection (try
                      (f projection event-args)
@@ -82,25 +92,27 @@
 
 
 (defn project
-  [projector events]
-  (let [projection (new-projection projector)
-        ret {:projector projector
-             :events events
-             :projection projection
-             :flow []}]
-    (->> events
-         (reduce (fn [ret event]
-                   (let [projection (-> ret :projection)
-                         projection (apply-event projector projection event)
-                         flow (-> ret :flow)
-                         step {:event event
-                               :projection projection
-                               :index (count flow)}
-                         flow (conj flow step)]
-                     (-> ret
-                         (assoc :flow flow)
-                         (assoc :projection projection))))
-                 ret))))
+  ([projector events]
+   (project projector nil events))
+  ([projector projection events]
+   (let [projection (or projection (new-projection projector))
+         ret {:projector projector
+              :events events
+              :projection projection
+              :flow []}]
+     (->> events
+          (reduce (fn [ret event]
+                    (let [projection (-> ret :projection)
+                          projection (apply-event projector projection event)
+                          flow (-> ret :flow)
+                          step {:event event
+                                :projection projection
+                                :index (count flow)}
+                          flow (conj flow step)]
+                      (-> ret
+                          (assoc :flow flow)
+                          (assoc :projection projection))))
+                  ret)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

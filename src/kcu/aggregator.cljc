@@ -3,7 +3,9 @@
   (:require
    [clojure.spec.alpha :as s]
 
-   [kcu.utils :as u]))
+   [kcu.utils :as u]
+   [kcu.projector :as projector]))
+
 
 (s/def ::aggregator-id simple-keyword?)
 
@@ -53,12 +55,20 @@
     (assoc inputs input-type infos)))
 
 
+(defn- as-projection-ref [projection-ref]
+  (cond
+    (vector? projection-ref) projection-ref
+    (seq? projection-ref) (into [] projection-ref)
+    (keyword? projection-ref) [projection-ref]
+    :else (throw (ex-info (str "Invalid projection-ref `" projection-ref "`.")
+                          {:invalid-projection-ref projection-ref}))))
+
+
 (defn- provide-projection
   [aggregator aggregate projection-ref]
-  (let [projection-ref (if (vector? projection-ref)
-                         projection-ref
-                         [projection-ref])]
-    {}))
+  (let [projection-ref (as-projection-ref projection-ref)]
+    (get-in aggregate [:projection projection-ref])))
+
 
 (defn- context-f [aggregator aggregate !inputs]
   (fn context [input-type & input-args]
@@ -79,6 +89,15 @@
   (let [[command-name command-args] command
         aggregator-id (-> aggregator :id)
         handler (get-in aggregator [:command-handlers command-name])
+        _ (when-not handler
+            (throw (ex-info (str "Executing command `"
+                                 command-name
+                                 "` with aggregator `"
+                                 aggregator-id
+                                 "` failed. No handler for command.")
+                            {:aggregator-id aggregator-id
+                             :unknown-command command-name
+                             :known-commands (-> aggregator :command-handlers keys)})))
         f (get handler :f)
         !inputs (atom [])
         context-f (context-f aggregator aggregate !inputs)
@@ -87,7 +106,7 @@
                   (catch #?(:clj Exception :cljs :default) ex
                      (throw (ex-info (str "Executing command `"
                                       command-name
-                                      "` eith aggregator `"
+                                      "` with aggregator `"
                                       aggregator-id
                                       "` failed. Commnad handler crashed.")
                                      {:aggregator-id aggregator-id
@@ -109,25 +128,61 @@
        :inputs @!inputs}))
 
 
+(defn- apply-events [aggregator aggregate projection-ref events]
+  (let [projection-ref (as-projection-ref projection-ref)
+        projector-id (first projection-ref)
+        projector (projector/projector projector-id)
+        projection-path [:projections projection-ref]
+        projection (get-in aggregate projection-path)
+        projection (projector/project projector projection events)]
+    (-> aggregate
+        (assoc-in projection-path projection))))
+
+(defn- apply-events-map
+  [aggregator aggregate events-map]
+  (reduce (fn [aggregate [projection-ref events]]
+            (apply-events aggregator aggregate projection-ref events))
+          aggregate
+          events-map))
+
+
 (defn simulate-commands
   [aggregator commands]
-  (let [aggregate (new-aggregate aggregator)
-        ret {:aggregator aggregator
+  (let [ret {:aggregator aggregator
              :commands commands
+             :aggregate (new-aggregate aggregator)
              :flow []}]
     (->> commands
          (reduce (fn [ret command]
-                   (let [result (apply-command aggregator aggregate command)
+                   (let [aggregate (get ret :aggregate)
+
+                         [result command-exception]
+                         (try
+                           [(apply-command aggregator aggregate command)]
+                           (catch #?(:clj Exception :cljs :default) ex
+                             [{} ex]))
+
                          effects (get result :effects)
-                         events (-> effects :events)
+                         events (get effects :events)
+
+                         [aggregate projection-exception]
+                         (try
+                           [(apply-events-map aggregator aggregate events)]
+                           (catch #?(:clj Exception :cljs :default) ex
+                             [aggregate ex]))
+
                          flow (-> ret :flow)
                          step {:command command
                                :inputs (get result :inputs)
                                :effects effects
-                               :index (count flow)}
+                               :index (count flow)
+                               :aggregate aggregate
+                               :command-exception command-exception
+                               :projection-exception projection-exception}
                          flow (conj flow step)]
                      (-> ret
                          (assoc :flow flow))))
+                         ;; (assoc :aggregate aggregate))))
                  ret))))
 
 
