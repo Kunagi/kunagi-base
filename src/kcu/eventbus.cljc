@@ -88,8 +88,3 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; rich comments
 
-(reg-handler
- {:id :a/b
-  :event :something/happened})
-
-(handlers-for-event :something/happened)
