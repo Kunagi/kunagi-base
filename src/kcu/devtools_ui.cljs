@@ -11,6 +11,12 @@
    [kcu.aggregator :as aggregator]))
 
 
+(def color-command "#ffe0b2")
+(def color-event "#bbdefb")
+(def color-projection-step "#f5f5f5")
+(def color-projection-value "#e1bee7")
+
+
 (defn Sidescroller
   [elements]
   [:div
@@ -27,8 +33,15 @@
   [muic/Stack
    (for [k (->> m keys sort)]
      ^{:key k}
-     [muic/Inline
-      [:div {:style {:color :gery}} k]
+     [:div
+      {:style {:display :grid
+               :grid-template-columns "min-content auto"
+               :grid-gap (theme/spacing 1)
+               :align-items :baseline}}
+      [:div {:style {:font-weight :bold
+                     :min-width "60px"
+                     :white-space :nowrap}}
+       [muic/Data k]]
       [muic/Data (get m k)]])])
 
 
@@ -37,7 +50,6 @@
    {:style {:color :grey}}
    " " text " "])
 
-(def color-command "#ffe0b2")
 
 (defn CommandCard [[command-name command-args]]
   [muic/Card
@@ -48,8 +60,6 @@
    [muic/Data command-args]])
 
 
-(def color-event "#bbdefb")
-
 (defn EventCard [event-name event-args]
   [muic/Card
    {:style {:background-color color-event}}
@@ -57,10 +67,6 @@
     {:style {:font-weight :bold}}
     event-name]
    [muic/Data event-args]])
-
-(def color-projection "#f5f5f5")
-(def color-projection-step "#ffecb3")
-(def color-projection-value "#e1bee7")
 
 (defn ProjectionDataCard [projection]
   [muic/Card
@@ -120,26 +126,17 @@
      [Map-As-Stack effects]]))
 
 
-(defn Aggregate-Step-Projections [step]
-  [muic/Stack
-   {:spacing (theme/spacing 4)}
-   (when-let [ex (-> step :projection-exception)]
-     [muic/ExceptionCard ex])
-   (let [projections (-> step :aggregate :projections)]
-     (for [k (->> projections keys sort)]
-       (let [projection (get projections k)]
-         ^{:key (-> k)}
-         [muic/Card
-          {:style {:background-color color-projection}}
-          [muic/Stack-1
-           [:div
-            {:style {:color (theme/color-primary-main)}}
-            (first k) " " (second k)
-            [Label "projection"]]
-           [:div
-            (for [pstep (-> projection :flow)]
-              ^{:key (-> pstep :index)}
-              [Projection-Step pstep])]]])))])
+(defn Aggregate-Step-Projection [[projector-id entity-id :as ref] step]
+  (let [projection (get-in step [:aggregate :projections ref])]
+    [muic/Stack-1
+     [:div
+      {:style {:color (theme/color-primary-main)}}
+      projector-id " "
+      [:span {:style {:font-weight :bold}} entity-id]]
+     [:div
+      (for [pstep (-> projection :flow)]
+        ^{:key (-> pstep :index)}
+        [Projection-Step pstep])]]))
 
 
 (defn Aggregate-Command-Flow-Row
@@ -161,18 +158,25 @@
 
 (defn Aggregate-Command-Flow
   [{:keys [aggregator commands]}]
-  (let [result (aggregator/simulate-commands aggregator commands)]
+  (let [result (aggregator/simulate-commands aggregator commands)
+        projection-refs (reduce (fn [refs step]
+                                  (into refs (-> step :aggregate :projections keys)))
+                                #{}
+                                (get result :flow))]
     [muic/Stack-1
      (-> aggregator :id)
      [:div
       {:style {:overflow-x :auto}}
       [:table
        {:style {:height "1px"}}
-       [Aggregate-Command-Flow-Header "Command"]
-       [Aggregate-Command-Flow-Row result Aggregate-Step-Command]
-       [Aggregate-Command-Flow-Header "Used from Context"]
-       [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
-       [Aggregate-Command-Flow-Header "Effects"]
-       [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
-       [Aggregate-Command-Flow-Header "Projections"]
-       [Aggregate-Command-Flow-Row result Aggregate-Step-Projections]]]]))
+       [:tbody
+        [Aggregate-Command-Flow-Header "Command"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Command]
+        [Aggregate-Command-Flow-Header "Used from Context"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
+        [Aggregate-Command-Flow-Header "Effects"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
+        [Aggregate-Command-Flow-Header "Projections"]
+        (for [ref (sort projection-refs)]
+          ^{:key ref}
+          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection ref)])]]]]))
