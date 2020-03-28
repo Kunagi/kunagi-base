@@ -67,7 +67,7 @@
 (defn- provide-projection
   [aggregator aggregate projection-ref]
   (let [projection-ref (as-projection-ref projection-ref)]
-    (get-in aggregate [:projection projection-ref])))
+    (get-in aggregate [:projections projection-ref])))
 
 
 (defn- context-f [aggregator aggregate !inputs]
