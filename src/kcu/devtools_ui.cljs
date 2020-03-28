@@ -113,6 +113,7 @@
 (defn Aggregate-Step-Command [step]
   (let [command (-> step :command)]
     [muic/Stack-1
+     ;; [muic/Data (->> step :projection-results vals)]
      [CommandCard command]
      (when-let [exception (-> step :command-exception)]
        [muic/ExceptionCard exception])
@@ -164,14 +165,14 @@
 
 
 (defn Aggregate-Step-Projection [[projector-id entity-id :as ref] step]
-  (let [projection (get-in step [:aggregate :projections ref])]
+  (let [flow (get-in step [:projection-results ref :flow])]
     [muic/Stack-1
      [:div
       {:style {:color (theme/color-primary-main)}}
       projector-id " "
       [:span.b entity-id]]
      [:div
-      (for [pstep (-> projection :flow)]
+      (for [pstep flow]
         ^{:key (-> pstep :index)}
         [Projection-Step pstep])]]))
 
@@ -197,24 +198,25 @@
   [{:keys [aggregator commands]}]
   (let [result (aggregator/simulate-commands aggregator commands)
         projection-refs (reduce (fn [refs step]
-                                  (into refs (-> step :aggregate :projections keys)))
+                                  (into refs (-> step :projection-results keys)))
                                 #{}
                                 (get result :flow))]
     [muic/Stack-1
-     (-> aggregator :id)
-     [:div
-      {:style {:overflow-x :auto}}
-      [:table
-       {:style {:height "1px"}}
+     [:div {:style {:overflow-x :auto}}
+      [:table {:style {:height "1px"}}
        [:tbody
         [Aggregate-Command-Flow-Header "Command"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Command]
-        [Aggregate-Command-Flow-Header "Events"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-Events]
+
         [Aggregate-Command-Flow-Header "Used from Context"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
+
         [Aggregate-Command-Flow-Header "Effects"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
+
+        [Aggregate-Command-Flow-Header "Events"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Events]
+
         [Aggregate-Command-Flow-Header "Projections"]
         (for [ref (sort projection-refs)]
           ^{:key ref}

@@ -134,9 +134,12 @@
         projector (projector/projector projector-id)
         projection-path [:projections projection-ref]
         projection (get-in aggregate projection-path)
-        projection (projector/project projector projection events)]
+        projection-ret (projector/project projector projection events)
+        projection (get projection-ret :projection)]
     (-> aggregate
-        (assoc-in projection-path projection))))
+        (assoc-in projection-path projection)
+        (assoc-in [:projection-results projection-ref] projection-ret))))
+
 
 (defn- apply-events-map
   [aggregator aggregate events-map]
@@ -171,18 +174,22 @@
                            (catch #?(:clj Exception :cljs :default) ex
                              [aggregate ex]))
 
+                         projection-results (get aggregate :projection-results)
+                         aggregate (dissoc aggregate :projection-results)
+
                          flow (-> ret :flow)
                          step {:command command
                                :inputs (get result :inputs)
                                :effects effects
                                :index (count flow)
                                :aggregate aggregate
+                               :projection-results projection-results
                                :command-exception command-exception
                                :projection-exception projection-exception}
                          flow (conj flow step)]
                      (-> ret
-                         (assoc :flow flow))))
-                         ;; (assoc :aggregate aggregate))))
+                         (assoc :flow flow)
+                         (assoc :aggregate aggregate))))
                  ret))))
 
 
