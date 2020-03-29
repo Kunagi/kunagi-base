@@ -160,6 +160,10 @@
                       (fn [db]
                         (assoc-in db (lense-full-path lense) (default-value-f))))))
 
+      ;; (when-let [projector (get lense :projector)]
+      ;;   (rf/reg-event-db
+      ;;    event))
+
       lense)
     (catch #?(:clj Exception :cljs :default) ex
       (throw (ex-info (str "Creating lense `" (-> lense :id) "` failed.")
@@ -417,3 +421,6 @@
    (-> db
        start-conversation
        run-init-fs)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

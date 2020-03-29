@@ -95,6 +95,15 @@
     (get-in aggregate [:projections projection-ref])))
 
 
+(defn- provide-random-uuid [aggregate]
+  (if-let [!devtools (-> aggregate :devtools)]
+    (let [idx (inc (get @!devtools :uuid-idx 0))
+          uuid (str idx)]
+      (swap! !devtools assoc :uuid-idx idx)
+      uuid)
+    (u/random-uuid-string)))
+
+
 (defn- context-f [aggregator aggregate !inputs]
   (fn context [input-type & input-args]
     (swap! !inputs #(conj % (if input-args
@@ -102,8 +111,9 @@
                               input-type)))
     (case input-type
       :projection (provide-projection aggregator aggregate input-args)
-      :timestamp (u/current-time-millis)
-      :random-uuid (u/random-uuid-string)
+      :timestamp (or (-> aggregate :timestamp)
+                     (u/current-time-millis))
+      :random-uuid (provide-random-uuid aggregate)
       (throw (ex-info (str "Unsupported context input `" input-type "`.")
                       {:input-type input-type
                        :input-args input-args})))))
@@ -208,12 +218,17 @@
   [aggregator commands]
   (let [ret {:aggregator aggregator
              :commands commands
-             :aggregate (new-aggregate aggregator)
+             :aggregate (-> (new-aggregate aggregator)
+                            (assoc :devtools (atom {})))
              :flow []}]
     (->> commands
          (reduce (fn [ret command]
                    (let [command (as-command command)
                          aggregate (get ret :aggregate)
+
+                         aggregate (assoc aggregate
+                                          :timestamp
+                                          (-> ret :flow count inc))
 
                          aggregate
                          (try
