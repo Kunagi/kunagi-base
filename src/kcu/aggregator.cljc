@@ -40,10 +40,34 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(defn assert-aggregator [aggregator]
+  (u/assert-entity aggregator {:id ::aggregator-id
+                               :command-handlers map?}))
+
+(defn assert-aggregate [aggregate]
+  (u/assert-entity aggregate {:aggregate/aggregator ::aggregator-id}))
+
+
 (defn new-aggregate
   [aggregator]
+  (assert-aggregator aggregator)
   (let [aggregator-id (-> aggregator :id)]
     {:aggregate/aggregator aggregator-id}))
+
+
+(defn assign-projection
+  [aggregator aggregate projection]
+  (assert-aggregator aggregator)
+  (assert-aggregate aggregate)
+  (projector/assert-projection projection)
+  (let [projector-id (get projection :projection/projector)
+        entity-id (get projection :projection/entity-id)]
+    (assoc-in aggregate [:projections [projector-id entity-id]] projection)))
+
+
+(defn assign-projections
+  [aggregator aggregate projections]
+  (reduce (partial assign-projection aggregator) aggregate projections))
 
 
 (defn- register-input [inputs input-type input-args]
@@ -124,8 +148,10 @@
                            :command command
                            :invalid-effects effects}
                           ex))))
-      {:effects effects
-       :inputs @!inputs}))
+      (assoc aggregate
+             :exec {:command command
+                    :effects effects
+                    :inputs @!inputs})))
 
 
 (defn- apply-events [aggregator aggregate projection-ref events]
@@ -133,20 +159,35 @@
         projector-id (first projection-ref)
         projector (projector/projector projector-id)
         projection-path [:projections projection-ref]
-        projection (get-in aggregate projection-path)
+        projection (or (get-in aggregate projection-path)
+                       (projector/new-projection projector
+                                                 (second projection-ref)))
         projection-ret (projector/project projector projection events)
         projection (get projection-ret :projection)]
     (-> aggregate
         (assoc-in projection-path projection)
-        (assoc-in [:projection-results projection-ref] projection-ret))))
+        (assoc-in [:exec :projection-results projection-ref] projection-ret))))
 
 
-(defn- apply-events-map
-  [aggregator aggregate events-map]
-  (reduce (fn [aggregate [projection-ref events]]
-            (apply-events aggregator aggregate projection-ref events))
-          aggregate
-          events-map))
+(defn- project-events
+  [aggregator aggregate]
+  (let [events-map (get-in aggregate [:exec :effects :events])]
+    (reduce (fn [aggregate [projection-ref events]]
+              (apply-events aggregator aggregate projection-ref events))
+            aggregate
+            events-map)))
+
+
+(defn execute-command
+  [aggregator aggregate command]
+  (assert-aggregator aggregator)
+  (assert-aggregate aggregate)
+  (let [aggregate (or aggregate
+                      (new-aggregate aggregator))
+        aggregate (dissoc aggregate :exec)
+        aggregate (apply-command aggregator aggregate command)
+        aggregate (project-events aggregator aggregate)]
+    aggregate))
 
 
 (defn simulate-commands
@@ -159,34 +200,23 @@
          (reduce (fn [ret command]
                    (let [aggregate (get ret :aggregate)
 
-                         [result command-exception]
+                         aggregate
                          (try
-                           [(apply-command aggregator aggregate command)]
+                           (apply-command aggregator aggregate command)
                            (catch #?(:clj Exception :cljs :default) ex
-                             [{} ex]))
+                             (assoc-in aggregate [:exec :command-exception] ex)))
 
-                         effects (get result :effects)
-                         events (get effects :events)
-
-                         [aggregate projection-exception]
+                         aggregate
                          (try
-                           [(apply-events-map aggregator aggregate events)]
+                           (project-events aggregator aggregate)
                            (catch #?(:clj Exception :cljs :default) ex
-                             [aggregate ex]))
-
-                         projection-results (get aggregate :projection-results)
-                         aggregate (dissoc aggregate :projection-results)
+                             (assoc-in aggregate [:exec :projection-exception] ex)))
 
                          flow (-> ret :flow)
-                         step {:command command
-                               :inputs (get result :inputs)
-                               :effects effects
-                               :index (count flow)
-                               :aggregate aggregate
-                               :projection-results projection-results
-                               :command-exception command-exception
-                               :projection-exception projection-exception}
-                         flow (conj flow step)]
+                         exec (-> aggregate
+                                  :exec
+                                  (assoc :index (count flow)))
+                         flow (conj flow exec)]
                      (-> ret
                          (assoc :flow flow)
                          (assoc :aggregate aggregate))))
@@ -238,6 +268,9 @@
       ~f)))
 
 #_(macroexpand '(def-command :punch {} (fn [])))
+
+
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

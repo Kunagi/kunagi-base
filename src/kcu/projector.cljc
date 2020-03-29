@@ -39,16 +39,36 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn assert-projector [projector]
+  (u/assert-entity projector {:id ::projector-id
+                              :handlers map?}))
+
+(defn assert-projection [projection]
+  (u/assert-entity projection {:projection/projector ::projector-id}))
+
 
 (defn new-projection
-  [projector]
+  [projector entity-id]
+  (assert-projector projector)
   (let [projector-id (-> projector :id)]
-    {:projection/projector projector-id}))
+    (if entity-id
+      {:projection/projector projector-id
+       :projection/entity-id entity-id}
+      {:projection/projector projector-id})))
 
+
+;; (defn projection-ref
+;;   [projection]
+;;   (assert-projection projection)
+;;   (let [projector-id (get projection :projection/projector)
+;;         entity-id (get projection :projection/entity-id)]
+;;     (if entity-id
+;;       [])))
 
 (defn apply-event
   [projector projection event]
-  (u/assert-entity projection {:projection/projector ::projector-id})
+  (assert-projector projector)
+  (assert-projection projection)
   (u/assert-spec ::event event)
   (let [[event-name event-args] event
         projector-id (-> projector :id)
@@ -92,27 +112,26 @@
 
 
 (defn project
-  ([projector events]
-   (project projector nil events))
-  ([projector projection events]
-   (let [projection (or projection (new-projection projector))
-         ret {:projector projector
-              :events events
-              :projection projection
-              :flow []}]
-     (->> events
-          (reduce (fn [ret event]
-                    (let [projection (-> ret :projection)
-                          projection (apply-event projector projection event)
-                          flow (-> ret :flow)
-                          step {:event event
-                                :projection projection
-                                :index (count flow)}
-                          flow (conj flow step)]
-                      (-> ret
-                          (assoc :flow flow)
-                          (assoc :projection projection))))
-                  ret)))))
+  [projector projection events]
+  (assert-projector projector)
+  (assert-projection projection)
+  (let [ret {:projector projector
+             :events events
+             :projection projection
+             :flow []}]
+    (->> events
+         (reduce (fn [ret event]
+                   (let [projection (-> ret :projection)
+                         projection (apply-event projector projection event)
+                         flow (-> ret :flow)
+                         step {:event event
+                               :projection projection
+                               :index (count flow)}
+                         flow (conj flow step)]
+                     (-> ret
+                         (assoc :flow flow)
+                         (assoc :projection projection))))
+                 ret))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

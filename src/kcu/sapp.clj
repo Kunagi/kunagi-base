@@ -7,7 +7,7 @@
    [kcu.utils :as u]
    [kcu.txa :as txa]
    [kcu.sapp-conversation :as conversation]
-   [clojure.spec.alpha :as s]))
+   [kcu.aggregator :as aggregator]))
 
 
 (def data-dir "app-data")
@@ -23,6 +23,7 @@
                 param))})
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; conversations
 
 (s/def ::conversation-id (s/and string?
@@ -132,3 +133,9 @@
                             % messages-promise wait?))
         (let [messages (-> messages-promise (deref 5000 []))]
           (u/encode-edn messages))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; aggregator
+
+

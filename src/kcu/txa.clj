@@ -2,7 +2,9 @@
   "Transaction Aggregate"
   (:refer-clojure :exclude [read load])
   (:require
-   [kcu.files :as files]))
+   [kcu.utils :as u]
+   [kcu.files :as files]
+   [kcu.aggregator :as aggregator]))
 
 
 (defn on-agent-error [id _agent ex]
@@ -69,33 +71,6 @@
     payload
     (when-let [constructor (-> txa :options :constructor)]
       (constructor txa))))
-
-
-;; (defn- load
-;;   [txa]
-;;   (try
-;;     (let [agent (-> txa :agent)]
-;;       (send-off
-;;        (-> txa :agent)
-;;        (fn [value]
-;;          (if (-> value :loaded?)
-;;            value
-;;            (try
-;;              (-> value
-;;                  (assoc :payload (load-payload txa))
-;;                  (assoc :loaded? true))
-;;              (catch Exception ex
-;;                (-> value
-;;                    (assoc :load-exception ex)))))))
-;;       (await agent)
-;;       (let [value (-> agent deref)]
-;;         (when-let [ex (-> value :load-exception)]
-;;           (throw ex))
-;;         (-> value :payload)))
-;;     (catch Exception ex
-;;       (throw (ex-info (str "Loading txa `" (-> txa :id) "` failed.")
-;;                       {:txa txa}
-;;                       ex)))))
 
 
 (declare transact)
@@ -170,3 +145,106 @@
   txa)
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defonce !txas (atom {}))
+
+
+(defn txa
+  [id]
+  (get @!txas id))
+
+
+(defn reg-txa
+  [id options]
+  (swap! !txas assoc id (new-txa id options))
+  id)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; durable aggregator txa
+
+
+(defn- aggregate-dir [aggregator entity-id]
+  (str "app-data"
+       "/aggregates/"
+       (-> aggregator :id name)
+       (when entity-id
+         (str "/" entity-id))))
+
+
+(defn- load-aggregator-aggregate
+  [txa]
+  (let [aggregator (aggregator/aggregator (-> txa :options ::aggregator-id))
+        entity-id (-> txa :options ::aggregate-entity-id)
+        dir (aggregate-dir aggregator entity-id)
+        projections-dir (str dir "/projections")
+        projections-dir-file (java.io.File. projections-dir)]
+    (tap> [:dbg ::load-aggregate dir])
+    (if-not (-> projections-dir-file .exists)
+      (aggregator/new-aggregate aggregator)
+      (reduce (fn [aggregate file]
+                (if (-> file .isDirectory)
+                  (aggregator/assign-projections
+                   aggregator aggregate (files/read-entities file))
+                  (if-not (-> file .getName (.endsWith ".edn"))
+                    aggregate
+                    (aggregator/assign-projection
+                     aggregator aggregate (files/read-edn file)))))
+              (aggregator/new-aggregate aggregator)
+              (-> projections-dir-file .listFiles)))))
+
+
+(defn- store-aggregator-aggregate
+  [txa aggregate]
+  (let [aggregator (aggregator/aggregator (-> txa :options ::aggregator-id))
+        entity-id (-> txa :options ::aggregate-entity-id)
+        dir (aggregate-dir aggregator entity-id)
+        p-refs (-> aggregate :exec :projection-results keys)]
+    ;; TODO store events
+    (doseq [[projector-id projection-entity-id :as p-ref] p-refs]
+      (let [file (str dir "/projections/"
+                      (name projector-id)
+                      (when projection-entity-id
+                        (str "/" projection-entity-id))
+                      ".edn")
+            projection (get-in aggregate [:projections p-ref])]
+        (tap> [:dbg ::store-projection file])
+        (files/write-edn file projection)))))
+
+
+(defn reg-durable-aggregator-txa
+  [aggregator-id]
+  (reg-txa
+   aggregator-id
+   {
+    ::aggregator-id aggregator-id
+    ::aggregate-entity-id nil
+
+    :load-f
+    (fn [txa]
+      (tap> [:!!! ::loaded (load-aggregator-aggregate txa)])
+      (load-aggregator-aggregate txa))
+
+    :store-f
+    (fn [txa value] (store-aggregator-aggregate txa value))}))
+
+
+(defn trigger-aggregator-command!
+  [aggregator-id command]
+  (u/assert-spec ::aggregator/aggregator-id aggregator-id)
+  (u/assert-spec ::aggregator/command command)
+  (tap> [:inf ::command aggregator-id command])
+  (let [txa (txa aggregator-id)
+        aggregator (aggregator/aggregator aggregator-id)]
+    (transact
+     txa
+     (fn [old-aggregate]
+       (let [aggregate (aggregator/execute-command aggregator old-aggregate command)]
+         aggregate)))))
+
+
+(defn trigger-command!
+  [txa-id command]
+  (trigger-aggregator-command! txa-id command))
