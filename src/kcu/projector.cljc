@@ -57,6 +57,22 @@
       {:projection/projector projector-id})))
 
 
+(defn as-projection-ref
+  ([projector-id entity-id]
+   (if entity-id
+     [projector-id entity-id]
+     [projector-id]))
+  ([projection-ref]
+   (cond
+     (vector? projection-ref) (if (second projection-ref)
+                                projection-ref
+                                [(first projection-ref)])
+     (seq? projection-ref) (into [] projection-ref)
+     (keyword? projection-ref) [projection-ref]
+     :else (throw (ex-info (str "Invalid projection-ref `" projection-ref "`.")
+                           {:invalid-projection-ref projection-ref})))))
+
+
 ;; (defn projection-ref
 ;;   [projection]
 ;;   (assert-projection projection)

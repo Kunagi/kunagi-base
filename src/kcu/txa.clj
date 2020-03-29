@@ -4,7 +4,8 @@
   (:require
    [kcu.utils :as u]
    [kcu.files :as files]
-   [kcu.aggregator :as aggregator]))
+   [kcu.aggregator :as aggregator]
+   [kcu.query :as query]))
 
 
 (defn on-agent-error [id _agent ex]
@@ -215,7 +216,17 @@
 
 
 (defn reg-durable-aggregator-txa
-  [aggregator-id]
+  [aggregator-id options]
+
+  ;; FIXME check permissions
+  (doseq [projector-id (-> options :projectors-as-responders)]
+    (query/reg-responder
+     (keyword (name aggregator-id) (name projector-id))
+     {:f (fn [_context {:keys [id]}]
+           (let [txa (txa aggregator-id)
+                 aggregate (read txa)]
+             (aggregator/projection aggregate projector-id id)))}))
+
   (reg-txa
    aggregator-id
    {
@@ -223,9 +234,7 @@
     ::aggregate-entity-id nil
 
     :load-f
-    (fn [txa]
-      (tap> [:!!! ::loaded (load-aggregator-aggregate txa)])
-      (load-aggregator-aggregate txa))
+    (fn [txa] (load-aggregator-aggregate txa))
 
     :store-f
     (fn [txa value] (store-aggregator-aggregate txa value))}))

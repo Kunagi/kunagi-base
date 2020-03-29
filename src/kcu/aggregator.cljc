@@ -55,6 +55,12 @@
     {:aggregate/aggregator aggregator-id}))
 
 
+(defn projection
+  [aggregate projector-id entity-id]
+  (get-in aggregate
+          [:projections (projector/as-projection-ref projector-id entity-id)]))
+
+
 (defn assign-projection
   [aggregator aggregate projection]
   (assert-aggregator aggregator)
@@ -62,7 +68,9 @@
   (projector/assert-projection projection)
   (let [projector-id (get projection :projection/projector)
         entity-id (get projection :projection/entity-id)]
-    (assoc-in aggregate [:projections [projector-id entity-id]] projection)))
+    (assoc-in aggregate
+              [:projections (projector/as-projection-ref projector-id entity-id)]
+              projection)))
 
 
 (defn assign-projections
@@ -79,18 +87,11 @@
     (assoc inputs input-type infos)))
 
 
-(defn- as-projection-ref [projection-ref]
-  (cond
-    (vector? projection-ref) projection-ref
-    (seq? projection-ref) (into [] projection-ref)
-    (keyword? projection-ref) [projection-ref]
-    :else (throw (ex-info (str "Invalid projection-ref `" projection-ref "`.")
-                          {:invalid-projection-ref projection-ref}))))
 
 
 (defn- provide-projection
   [aggregator aggregate projection-ref]
-  (let [projection-ref (as-projection-ref projection-ref)]
+  (let [projection-ref (projector/as-projection-ref projection-ref)]
     (get-in aggregate [:projections projection-ref])))
 
 
@@ -155,7 +156,7 @@
 
 
 (defn- apply-events [aggregator aggregate projection-ref events]
-  (let [projection-ref (as-projection-ref projection-ref)
+  (let [projection-ref (projector/as-projection-ref projection-ref)
         projector-id (first projection-ref)
         projector (projector/projector projector-id)
         projection-path [:projections projection-ref]

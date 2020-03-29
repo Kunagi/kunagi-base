@@ -5,9 +5,9 @@
    [ring.util.request :as ring-request]
 
    [kcu.utils :as u]
+   [kcu.query :as query]
    [kcu.txa :as txa]
-   [kcu.sapp-conversation :as conversation]
-   [kcu.aggregator :as aggregator]))
+   [kcu.sapp-conversation :as conversation]))
 
 
 (def data-dir "app-data")
@@ -59,49 +59,15 @@
 
 ;;; queries
 
-(s/def ::responder map?)
-(s/def ::responder-id qualified-keyword?)
-(s/def ::responder-or-id (s/or :responder ::responder
-                               :id ::responder-id))
 
-(defonce !responders (atom {}))
-
-
-(defn responder
-  [id]
-  (u/getm @!responders id))
-
-
-(defn reg-responder
-  [id options]
-  (let [responder (assoc options :id id)]
-    (swap! !responders assoc id responder)
-    responder))
-
-
-(defmacro def-responder
-  [sym options]
-  (let [id (keyword (str (ns-name *ns*)) (str sym))]
-    `(def ~sym (reg-responder ~id ~options))))
-
-
-(defn query-sync
-  [[responder query-args] context]
-  (u/assert-spec ::responder-or-id responder "query-sync")
-  (let [responder (if (keyword? responder)
-                    (u/getm @!responders responder)
-                    responder)
-        f (u/getm responder :f)
-        _ (tap> [:dbg ::query [(-> responder :id) query-args]])
-        response (f context query-args)]
-      response))
-
-(reset! conversation/!query-f query-sync)
+(def query-sync query/query-sync)
 
 (defn query-async
   [query context callback]
   (future
-    (callback (query-sync query context))))
+    (callback (query/query-sync query context))))
+
+(reset! conversation/!query-f query/query-sync)
 
 
 (defn http-serve-query [context]
