@@ -103,6 +103,7 @@
     (case input-type
       :projection (provide-projection aggregator aggregate input-args)
       :timestamp (u/current-time-millis)
+      :random-uuid (u/random-uuid-string)
       (throw (ex-info (str "Unsupported context input `" input-type "`.")
                       {:input-type input-type
                        :input-args input-args})))))
@@ -179,11 +180,23 @@
             events-map)))
 
 
+(defn as-command [command]
+  (cond
+    (vector? command) (if (= 2 (count command))
+                        command
+                        [(first command) (or (second command)
+                                             {})])
+    (keyword? command) [command {}]
+    :else (throw (ex-info (str "Illegal command `" command "`.")
+                          {:illegal-command command}))))
+
+
 (defn execute-command
   [aggregator aggregate command]
   (assert-aggregator aggregator)
   (assert-aggregate aggregate)
-  (let [aggregate (or aggregate
+  (let [command (as-command command)
+        aggregate (or aggregate
                       (new-aggregate aggregator))
         aggregate (dissoc aggregate :exec)
         aggregate (apply-command aggregator aggregate command)
@@ -199,7 +212,8 @@
              :flow []}]
     (->> commands
          (reduce (fn [ret command]
-                   (let [aggregate (get ret :aggregate)
+                   (let [command (as-command command)
+                         aggregate (get ret :aggregate)
 
                          aggregate
                          (try

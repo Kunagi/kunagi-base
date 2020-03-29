@@ -97,7 +97,8 @@
 
 (defn Projection-Event-Flow
   [{:keys [projector events]}]
-  (let [projection-result (projector/project projector events)]
+  (let [projection (projector/new-projection projector nil)
+        projection-result (projector/project projector projection events)]
     [muic/Stack-1
      [:div
       [Label "Projection Event Flow"]
@@ -184,7 +185,8 @@
      ^{:key (-> step :index)}
      [:td
       [muic/Card
-       {:style {:height "100%"}}
+       {:style {:height "100%"
+                :min-width "300px"}}
        [component-f step]]])])
 
 (defn Aggregate-Command-Flow-Header [text]
