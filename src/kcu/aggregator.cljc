@@ -297,10 +297,13 @@
                    (let [command (as-command command)
                          aggregate (get ret :aggregate)
 
+                         aggregate (assoc aggregate :exec {:command command})
+
                          time (-> ret :flow count inc)
                          aggregate (assoc aggregate
                                           :devtools/timestamp
                                           time)
+
 
                          aggregate
                          (try
