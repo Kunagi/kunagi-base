@@ -52,27 +52,33 @@
     {:aggregate/aggregator aggregator-id}))
 
 
-(defn projection
-  [aggregate projector-id entity-id]
-  (get-in aggregate
-          [:projections (projector/as-projection-ref projector-id entity-id)]))
+;; (defn projection
+;;   [aggregate projector-id entity-id]
+;;   (get-in aggregate
+;;           [:projections (projector/as-projection-ref projector-id entity-id)]))
 
 
-(defn assign-projection
-  [aggregator aggregate projection]
-  (assert-aggregator aggregator)
-  (assert-aggregate aggregate)
-  (projector/assert-projection projection)
-  (let [projector-id (get projection :projection/projector)
-        entity-id (get projection :projection/entity-id)]
-    (assoc-in aggregate
-              [:projections (projector/as-projection-ref projector-id entity-id)]
-              projection)))
+;; (defn assign-projection
+;;   [aggregator aggregate projection]
+;;   (assert-aggregator aggregator)
+;;   (assert-aggregate aggregate)
+;;   (projector/assert-projection projection)
+;;   (let [projector-id (get projection :projection/projector)
+;;         entity-id (get projection :projection/entity-id)]
+;;     (assoc-in aggregate
+;;               [:projections (projector/as-projection-ref projector-id entity-id)]
+;;               projection)))
 
 
-(defn assign-projections
-  [aggregator aggregate projections]
-  (reduce (partial assign-projection aggregator) aggregate projections))
+;; (defn assign-projections
+;;   [aggregator aggregate projections]
+;;   (reduce (partial assign-projection aggregator) aggregate projections))
+
+
+;; (defn- provide-projection
+;;   [aggregator aggregate projection-ref]
+;;   (let [projection-ref (projector/as-projection-ref projection-ref)]
+;;     (get-in aggregate [:projections projection-ref])))
 
 
 (defn- register-input [inputs input-type input-args]
@@ -82,14 +88,6 @@
                   #{})
         infos (conj infos input-args)]
     (assoc inputs input-type infos)))
-
-
-
-
-(defn- provide-projection
-  [aggregator aggregate projection-ref]
-  (let [projection-ref (projector/as-projection-ref projection-ref)]
-    (get-in aggregate [:projections projection-ref])))
 
 
 (defn- provide-random-uuid [aggregate]
@@ -107,7 +105,7 @@
                               [input-type (into [] input-args)]
                               input-type)))
     (case input-type
-      :projection (provide-projection aggregator aggregate input-args)
+      ;; :projection (provide-projection aggregator aggregate input-args)
       :timestamp (or (-> aggregate :timestamp)
                      (u/current-time-millis))
       :random-uuid (provide-random-uuid aggregate)
@@ -273,8 +271,22 @@
     aggregate))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn project-events [aggregator aggregate projectors]
+  (let [events (->> aggregate :exec :effects (filter event?))
+        projections (reduce
+                     (fn [projections projector]
+                       (into projections
+                             (projector/handle-events projector nil nil events)))
+                     []
+                     projectors)]
+    (assoc-in aggregate [:exec :projections] projections)))
+
+
 (defn simulate-commands
-  [aggregator commands]
+  [aggregator commands projectors]
   (let [ret {:aggregator aggregator
              :commands commands
              :aggregate (-> (new-aggregate aggregator)
@@ -304,11 +316,11 @@
                            (catch #?(:clj Exception :cljs :default) ex
                              (assoc-in aggregate [:exec :events-exception] ex)))
 
-                         ;; aggregate
-                         ;; (try
-                         ;;   (project-events aggregator aggregate)
-                         ;;   (catch #?(:clj Exception :cljs :default) ex
-                         ;;     (assoc-in aggregate [:exec :projection-exception] ex)))
+                         aggregate
+                         (try
+                           (project-events aggregator aggregate projectors)
+                           (catch #?(:clj Exception :cljs :default) ex
+                             (assoc-in aggregate [:exec :projection-exception] ex)))
 
                          flow (-> ret :flow)
                          exec (-> aggregate

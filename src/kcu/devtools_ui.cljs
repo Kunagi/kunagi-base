@@ -41,11 +41,11 @@
                :grid-gap (theme/spacing 1)
                :align-items :baseline}}
       [:div.b
-       {:style {:min-width "60px"
+       {:style {:min-width "100px"
                 :white-space :nowrap}}
        [muic/Data k]]
       [:div
-       {:style {:min-width "100px"}}
+       {:style {:min-width "200px"}}
        [muic/Data (get m k)]]])])
 
 
@@ -73,7 +73,7 @@
   [muic/Card
    {:style {:background-color color-event}}
    [muic/Stack-1
-    [:div.b (-> event :event/name)]
+    [:div.b (-> event :event/name str)]
     [Map-As-Stack (dissoc event :event/name :event/id :event/time)]]])
 
 
@@ -81,34 +81,6 @@
   [muic/Card
    {:style {:background-color color-projection}}
    [Map-As-Stack projection]])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(defn Projection-Step
-  [{:keys [event projection]}]
-  (let [[event-name event-args] event
-        projection (dissoc projection
-                           :projection/projector)]
-    [muic/Card
-     {:style {:background-color color-projection-step}}
-     [muic/Stack-1
-      [EventCard event-name event-args]
-      [ProjectionDataCard projection]]]))
-
-
-(defn Projection-Event-Flow
-  [{:keys [projector events]}]
-  (let [projection (projector/new-projection projector nil)
-        projection-result (projector/project projector projection events)]
-    [muic/Stack-1
-     [:div
-      [Label "Projection Event Flow"]
-      (-> projector :id)]
-     [Sidescroller
-      (for [step (-> projection-result :flow)]
-        ^{:key (-> step :index)}
-        [Projection-Step step])]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -178,17 +150,30 @@
 
 
 
-(defn Aggregate-Step-Projection [[projector-id entity-id :as ref] step]
-  (let [flow (get-in step [:projection-results ref :flow])]
-    [muic/Stack-1
-     [:div
-      {:style {:color (theme/color-primary-main)}}
-      projector-id " "
-      [:span.b entity-id]]
-     [:div
-      (for [pstep flow]
-        ^{:key (-> pstep :index)}
-        [Projection-Step pstep])]]))
+(defn Aggregate-Step-Projection [projection-id step]
+  (let [projection (->> step
+                        :projections
+                        (filter #(= projection-id (get % :projection/id)))
+                        first)]
+    (when projection
+      [muic/Stack-1
+       [:div
+        [:span.b (-> projection :projection/projector) " "]
+        [:span.monospace projection-id]]
+       (for [event (->> step
+                        :effects
+                        (filter aggregator/event?)
+                        (filter #(contains? (-> projection :projection/handled-events)
+                                            (-> % :event/id))))]
+         ^{:key (-> event :event/id)}
+         [EventCard event])
+       [muic/Card
+        {:style {:background-color color-projection}}
+        [muic/Stack-1
+         [Map-As-Stack (dissoc projection
+                               :projection/projector
+                               :projection/id
+                               :projection/handled-events)]]]])))
 
 
 (defn Aggregate-Command-Flow-Row
@@ -198,8 +183,7 @@
      ^{:key (-> step :index)}
      [:td
       [muic/Card
-       {:style {:height "100%"
-                :min-width "300px"}}
+       {:style {:height "100%"}}
        [component-f step]]])])
 
 (defn Aggregate-Command-Flow-Header [text]
@@ -210,12 +194,14 @@
 
 
 (defn Aggregate-Command-Flow
-  [{:keys [aggregator commands]}]
-  (let [result (aggregator/simulate-commands aggregator commands)
-        projection-refs (reduce (fn [refs step]
-                                  (into refs (-> step :projection-results keys)))
-                                #{}
-                                (get result :flow))]
+  [{:keys [aggregator commands projectors]}]
+  (let [result (aggregator/simulate-commands aggregator commands projectors)
+        projection-ids (reduce (fn [ids step]
+                                 (into ids (->> step
+                                                :projections
+                                                (map #(get % :projection/id)))))
+                               #{}
+                               (get result :flow))]
     [muic/Stack-1
      [:div {:style {:overflow-x :auto}}
       [:table {:style {:height "1px"}}
@@ -227,7 +213,12 @@
         [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
 
         [Aggregate-Command-Flow-Header "Aggregate State"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-State]]]]]))
+        [Aggregate-Command-Flow-Row result Aggregate-Step-State]
+
+        [Aggregate-Command-Flow-Header "Projections"]
+        (for [id (sort projection-ids)]
+          ^{:key id}
+          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection id)])]]]]))
 
         ;; [Aggregate-Command-Flow-Header "Used from Context"]
         ;; [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
@@ -239,3 +230,32 @@
         ;; (for [ref (sort projection-refs)]
         ;;   ^{:key ref}
         ;;   [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection ref)])]]]]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; (defn Projection-Step
+;;   [{:keys [event projection]}]
+;;   (let [[event-name event-args] event
+;;         projection (dissoc projection
+;;                            :projection/projector)]
+;;     [muic/Card
+;;      {:style {:background-color color-projection-step}}
+;;      [muic/Stack-1
+;;       [EventCard event-name event-args]
+;;       [ProjectionDataCard projection]]]))
+
+
+;; (defn Projection-Event-Flow
+;;   [{:keys [projector events]}]
+;;   (let [projection (projector/new-projection projector nil)
+;;         projection-result (projector/project projector projection events)]
+;;     [muic/Stack-1
+;;      [:div
+;;       [Label "Projection Event Flow"]
+;;       (-> projector :id)]
+;;      [Sidescroller
+;;       (for [step (-> projection-result :flow)]
+;;         ^{:key (-> step :index)}
+;;         [Projection-Step step])]]))
