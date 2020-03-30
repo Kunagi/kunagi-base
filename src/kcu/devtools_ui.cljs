@@ -11,8 +11,8 @@
    [kcu.aggregator :as aggregator]))
 
 
-(def color-command "#ffe0b2")
-(def color-event "#bbdefb")
+(def color-command "#bbdefb")
+(def color-event "#ffe0b2")
 (def color-projection "#e1bee7")
 (def color-projection-step "#f5f5f5")
 (def color-context "#c8e6c9")
@@ -137,6 +137,17 @@
           [EventCard event-name args])])]))
 
 
+(defn Aggregate-Step-DomainEvents [step]
+  (let [events (-> step :effects :devents)]
+    [muic/Stack
+     {:spacing (theme/spacing 2)}
+     (for [event events]
+       ^{:key event}
+       [muic/Card
+        {:style {:background-color color-event}}
+        [muic/Data event]])]))
+
+
 (defn Aggregate-Step-Inputs [step]
   [:div
    (into
@@ -209,6 +220,9 @@
        [:tbody
         [Aggregate-Command-Flow-Header "Command"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Command]
+
+        [Aggregate-Command-Flow-Header "Domain Events"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-DomainEvents]
 
         [Aggregate-Command-Flow-Header "Used from Context"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]

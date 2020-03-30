@@ -201,6 +201,16 @@
                           {:illegal-command command}))))
 
 
+(defn enrich-devents [aggregate time]
+  (update-in aggregate
+             [:exec :effects :devents]
+             #(map (fn [event]
+                     (-> event
+                         (assoc :event/time time)
+                         (assoc :event/id (provide-random-uuid aggregate))))
+                   %)))
+
+
 (defn execute-command
   [aggregator aggregate command]
   (assert-aggregator aggregator)
@@ -210,6 +220,7 @@
                       (new-aggregate aggregator))
         aggregate (dissoc aggregate :exec)
         aggregate (apply-command aggregator aggregate command)
+        aggregate (enrich-devents aggregate (u/current-time-millis))
         aggregate (project-events aggregator aggregate)]
     aggregate))
 
@@ -226,15 +237,18 @@
                    (let [command (as-command command)
                          aggregate (get ret :aggregate)
 
+                         time (-> ret :flow count inc)
                          aggregate (assoc aggregate
                                           :timestamp
-                                          (-> ret :flow count inc))
+                                          time)
 
                          aggregate
                          (try
                            (apply-command aggregator aggregate command)
                            (catch #?(:clj Exception :cljs :default) ex
                              (assoc-in aggregate [:exec :command-exception] ex)))
+
+                         aggregate (enrich-devents aggregate time)
 
                          aggregate
                          (try
