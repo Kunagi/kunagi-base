@@ -38,6 +38,11 @@
   (-> @REGISTRY (get entity-type) vals))
 
 
+(defn entities-by [entity-type filter-k filter-v]
+  (->> (entities entity-type)
+       (filter #(= filter-v (get % filter-k)))))
+
+
 (defn update-entity
   [entity-type k f & args]
   (swap! REGISTRY (fn [registry]

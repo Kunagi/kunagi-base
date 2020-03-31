@@ -51,6 +51,7 @@
                         (name projector-id))]
     {:projection/projector projector-id
      :projection/handled-events #{}
+     :projection/type (-> projector :type)
      :projection/id projection-id}))
 
 
@@ -229,6 +230,14 @@
 
 (defn projector [projector-id]
   (registry/entity :projector projector-id))
+
+
+(defn projectors []
+  (registry/entities :projector))
+
+
+(defn projectors-by-type [projector-type]
+  (registry/entities-by :projector :type projector-type))
 
 
 ;; (defn projector [projector-id]

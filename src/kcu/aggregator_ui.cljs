@@ -7,6 +7,7 @@
    [mui-commons.theme :as theme]
 
    [kcu.utils :as u]
+   [kcu.ui :as ui]
    [kcu.registry :as registry]
    [kcu.projector :as projector]
    [kcu.aggregator :as aggregator]))
@@ -19,6 +20,8 @@
 (def color-projection "#e1bee7")
 (def color-projection-step "#f5f5f5")
 (def color-context "#c8e6c9")
+(def color-ui color-unknown)
+
 
 (defn Sidescroller
   [elements]
@@ -177,6 +180,26 @@
                                :projection/handled-events)]]]])))
 
 
+(defn Aggregate-Step-UiComponent [component step]
+  (let [projections (->> step
+                         :projections
+                         (filter #(= (get component :model-type)
+                                     (get % :projection/type))))]
+    [muic/Stack-1
+     ;; [:span.monospace (-> component :id)]
+     (for [projection projections]
+       ^{:key (-> projection :id)}
+       [muic/Stack-1
+        [muic/Card
+         {:style {:background-color color-projection}}
+         (-> projection :projection/projector str)
+         " "
+         (-> projection :projection/id str)]
+        [muic/Card
+         {:style {:background-color color-ui}}
+         [(-> component :f) projection]]])]))
+
+
 (defn Aggregate-Command-Flow-Row
   [result component-f]
   [:tr
@@ -186,6 +209,7 @@
       [muic/Card
        {:style {:height "100%"}}
        [component-f step]]])])
+
 
 (defn Aggregate-Command-Flow-Header [text]
   [:tr
@@ -198,8 +222,16 @@
   [flow]
   (let [aggregator (aggregator/aggregator (-> flow :aggregator))
         commands (-> flow :commands)
-        projectors (map #(projector/projector %)
-                        (-> flow :projectors))
+        projectors (projector/projectors)
+        ui-components (reduce
+                       (fn [ret uic]
+                         (let [model-type (-> uic :model-type)
+                               projectors (projector/projectors-by-type
+                                           model-type)]
+                           (into ret (map #(assoc uic :projector %))
+                                     projectors)))
+                       []
+                       (ui/components))
         result (aggregator/simulate-commands aggregator commands projectors)
         projection-ids (reduce (fn [ids step]
                                  (into ids (->> step
@@ -226,7 +258,12 @@
         [Aggregate-Command-Flow-Header "Projections"]
         (for [id (sort projection-ids)]
           ^{:key id}
-          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection id)])]]]]))
+          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection id)])
+
+        [Aggregate-Command-Flow-Header "User Interface Components"]
+        (for [uic ui-components]
+          ^{:key [(-> uic :id) (-> uic :projector :id)]}
+          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-UiComponent uic)])]]]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
