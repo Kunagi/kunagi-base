@@ -233,11 +233,9 @@
 
 
 (defn- CommandFlowLink [flow]
-  [:> mui/Button
+  [muic/ActionCard
    {:href (str "aggregators?flow=" (-> flow :id))}
-   (-> flow :aggregator)
-   " "
-   (-> flow :name)])
+   (-> flow :name name (.split "-") (.join " "))])
 
 
 (defn Workarea [{flow-id :flow}]
@@ -249,7 +247,12 @@
                     first))]
     [muic/Stack-1
      (if-not flow
-       [muic/Inline
-        {:items flows
-         :template [CommandFlowLink]}]
+       [muic/Stack-1
+        (for [[aggregator flows] (group-by #(get % :aggregator) flows)]
+          ^{:key aggregator}
+          [muic/Stack-1
+           [:div aggregator]
+           [muic/Inline
+            {:items flows
+             :template [CommandFlowLink]}]])]
        [Test-Flow flow])]))
