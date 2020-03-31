@@ -348,6 +348,10 @@
   (registry/entity :aggregator aggregator-id))
 
 
+(defn aggregators []
+  (registry/entities :aggregator))
+
+
 (defn- update-aggregator [aggregator-id f]
   (registry/update-entity
    :aggregator aggregator-id
@@ -403,6 +407,24 @@
         id (keyword (ns-name *ns*))]
     `(reg-event-handler ~id ~event ~options ~f)))
 
+
+(defn reg-test-flow
+  [aggregator-id flow-name options commands]
+  (registry/register :command-test-flow [aggregator-id flow-name]
+                     (assoc options
+                            :id [aggregator-id flow-name]
+                            :aggregator aggregator-id
+                            :name flow-name
+                            :commands commands)))
+
+
+(defmacro def-test-flow
+  [& args]
+  (let [[nam options f] (if (< (count args) 3)
+                          [(nth args 0) {} (nth args 1)]
+                          args)
+        id (keyword (ns-name *ns*))]
+    `(reg-test-flow ~id ~nam ~options ~f)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -33,6 +33,11 @@
                     :known-keys (into [] (keys (get @REGISTRY entity-type)))}))))
 
 
+(defn entities
+  [entity-type]
+  (-> @REGISTRY (get entity-type) vals))
+
+
 (defn update-entity
   [entity-type k f & args]
   (swap! REGISTRY (fn [registry]

@@ -182,19 +182,20 @@
         dir (aggregate-dir aggregator entity-id)
         projections-dir (str dir "/projections")
         projections-dir-file (java.io.File. projections-dir)]
-    (tap> [:dbg ::load-aggregate dir])
-    (if-not (-> projections-dir-file .exists)
-      (aggregator/new-aggregate aggregator)
-      (reduce (fn [aggregate file]
-                (if (-> file .isDirectory)
-                  (aggregator/assign-projections
-                   aggregator aggregate (files/read-entities file))
-                  (if-not (-> file .getName (.endsWith ".edn"))
-                    aggregate
-                    (aggregator/assign-projection
-                     aggregator aggregate (files/read-edn file)))))
-              (aggregator/new-aggregate aggregator)
-              (-> projections-dir-file .listFiles)))))
+    (tap> [:dbg ::load-aggregate dir])))
+    ;; FIXME load aggregate state
+    ;; (if-not (-> projections-dir-file .exists)
+    ;;   (aggregator/new-aggregate aggregator)
+    ;;   (reduce (fn [aggregate file]
+    ;;             (if (-> file .isDirectory)
+    ;;               (aggregator/assign-projections
+    ;;                aggregator aggregate (files/read-entities file))
+    ;;               (if-not (-> file .getName (.endsWith ".edn"))
+    ;;                 aggregate
+    ;;                 (aggregator/assign-projection
+    ;;                  aggregator aggregate (files/read-edn file)))))
+    ;;           (aggregator/new-aggregate aggregator)
+    ;;           (-> projections-dir-file .listFiles)))))
 
 
 (defn- store-aggregator-aggregate
@@ -202,30 +203,32 @@
   (let [aggregator (aggregator/aggregator (-> txa :options ::aggregator-id))
         entity-id (-> txa :options ::aggregate-entity-id)
         dir (aggregate-dir aggregator entity-id)
-        p-refs (-> aggregate :exec :projection-results keys)]
+        p-refs (-> aggregate :exec :projection-results keys)]))
     ;; TODO store events
-    (doseq [[projector-id projection-entity-id :as p-ref] p-refs]
-      (let [file (str dir "/projections/"
-                      (name projector-id)
-                      (when projection-entity-id
-                        (str "/" projection-entity-id))
-                      ".edn")
-            projection (get-in aggregate [:projections p-ref])]
-        (tap> [:dbg ::store-projection file])
-        (files/write-edn file projection)))))
+    ;; FIXME store aggregate state
+    ;; (doseq [[projector-id projection-entity-id :as p-ref] p-refs]
+    ;;   (let [file (str dir "/projections/"
+    ;;                   (name projector-id)
+    ;;                   (when projection-entity-id
+    ;;                     (str "/" projection-entity-id))
+    ;;                   ".edn")
+    ;;         projection (get-in aggregate [:projections p-ref])]
+    ;;     (tap> [:dbg ::store-projection file])
+    ;;     (files/write-edn file projection)))))
 
 
 (defn reg-durable-aggregator-txa
   [aggregator-id options]
 
   ;; FIXME check permissions
-  (doseq [projector-id (-> options :projectors-as-responders)]
-    (query/reg-responder
-     (keyword (name aggregator-id) (name projector-id))
-     {:f (fn [_context {:keys [id]}]
-           (let [txa (txa aggregator-id)
-                 aggregate (read txa)]
-             (aggregator/projection aggregate projector-id id)))}))
+  ;; FIXME
+  ;; (doseq [projector-id (-> options :projectors-as-responders)]
+  ;;   (query/reg-responder
+  ;;    (keyword (name aggregator-id) (name projector-id))
+  ;;    {:f (fn [_context {:keys [id]}]
+  ;;          (let [txa (txa aggregator-id)
+  ;;                aggregate (read txa)]
+  ;;            (aggregator/projection aggregate projector-id id)))}))
 
   (reg-txa
    aggregator-id

@@ -1,4 +1,4 @@
-(ns kcu.devtools-ui
+(ns kcu.aggregator-ui
   (:require
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
@@ -7,6 +7,7 @@
    [mui-commons.theme :as theme]
 
    [kcu.utils :as u]
+   [kcu.registry :as registry]
    [kcu.projector :as projector]
    [kcu.aggregator :as aggregator]))
 
@@ -193,9 +194,13 @@
     text]])
 
 
-(defn Aggregate-Command-Flow
-  [{:keys [aggregator commands projectors]}]
-  (let [result (aggregator/simulate-commands aggregator commands projectors)
+(defn Test-Flow
+  [flow]
+  (let [aggregator (aggregator/aggregator (-> flow :aggregator))
+        commands (-> flow :commands)
+        projectors (map #(projector/projector %)
+                        (-> flow :projectors))
+        result (aggregator/simulate-commands aggregator commands projectors)
         projection-ids (reduce (fn [ids step]
                                  (into ids (->> step
                                                 :projections
@@ -215,47 +220,36 @@
         [Aggregate-Command-Flow-Header "Aggregate State"]
         [Aggregate-Command-Flow-Row result Aggregate-Step-State]
 
+        [Aggregate-Command-Flow-Header "Used from Context"]
+        [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
+
         [Aggregate-Command-Flow-Header "Projections"]
         (for [id (sort projection-ids)]
           ^{:key id}
           [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection id)])]]]]))
 
-        ;; [Aggregate-Command-Flow-Header "Used from Context"]
-        ;; [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
-
-        ;; [Aggregate-Command-Flow-Header "Events"]
-        ;; [Aggregate-Command-Flow-Row result Aggregate-Step-Events]
-
-        ;; [Aggregate-Command-Flow-Header "Projections"]
-        ;; (for [ref (sort projection-refs)]
-        ;;   ^{:key ref}
-        ;;   [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection ref)])]]]]))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;; (defn Projection-Step
-;;   [{:keys [event projection]}]
-;;   (let [[event-name event-args] event
-;;         projection (dissoc projection
-;;                            :projection/projector)]
-;;     [muic/Card
-;;      {:style {:background-color color-projection-step}}
-;;      [muic/Stack-1
-;;       [EventCard event-name event-args]
-;;       [ProjectionDataCard projection]]]))
+(defn- CommandFlowLink [flow]
+  [:> mui/Button
+   {:href (str "aggregators?flow=" (-> flow :id))}
+   (-> flow :aggregator)
+   " "
+   (-> flow :name)])
 
 
-;; (defn Projection-Event-Flow
-;;   [{:keys [projector events]}]
-;;   (let [projection (projector/new-projection projector nil)
-;;         projection-result (projector/project projector projection events)]
-;;     [muic/Stack-1
-;;      [:div
-;;       [Label "Projection Event Flow"]
-;;       (-> projector :id)]
-;;      [Sidescroller
-;;       (for [step (-> projection-result :flow)]
-;;         ^{:key (-> step :index)}
-;;         [Projection-Step step])]]))
+(defn Workarea [{flow-id :flow}]
+  (let [flows (registry/entities :command-test-flow)
+        flow-id (u/decode-edn flow-id)
+        flow (when flow-id
+               (->> flows
+                    (filter #(= flow-id (-> % :id)))
+                    first))]
+    [muic/Stack-1
+     (if-not flow
+       [muic/Inline
+        {:items flows
+         :template [CommandFlowLink]}]
+       [Test-Flow flow])]))
