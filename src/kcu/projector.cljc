@@ -74,17 +74,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn new-projection-pool [load-f]
+(defn new-projection-pool [projector load-f store-f]
   (let [!projections (atom {})]
-    {:get (fn [projector entity-id]
+    {:get (fn [entity-id]
             (or
              (get @!projections [(-> projector :id) entity-id])
              (when load-f (load-f projector entity-id))
              (new-projection projector entity-id)))
-     :update (fn [projector entity-id projection]
+     :update (fn [entity-id projection]
                (swap! !projections
                       assoc [(-> projector :id) entity-id]
                       projection))
+     :flush (fn []
+              (when store-f
+                (doseq [projection @!projections]
+                  (store-f projector (-> projection :projection/id) projection))))
      :projections (fn [] (vals @!projections))}))
 
 
@@ -157,7 +161,7 @@
       (let [projector-id (-> projector :id)
             id-resolver (handler-projection-id-resolver projector handler event)
             entity-id (when id-resolver (id-resolver event))
-            projection (get-projection projector entity-id)
+            projection (get-projection entity-id)
             f (get handler :f)
             projection (try
                          (f projection event)
@@ -187,18 +191,15 @@
             (update :projection/handled-events conj (-> event :event/id)))))))
 
 
-(defn handle-events [projector load-f store-f events]
-  (let [p-pool (new-projection-pool load-f)
-        get-f (-> p-pool :get)
-        update-f (-> p-pool :update)]
+(defn handle-events [projector p-pool events]
+  (let [get-f (-> p-pool :get)
+        update-f (-> p-pool :update)
+        flush-f (-> p-pool :flush)]
     (doseq [event events]
       (when-let [projection (handle-event projector get-f event)]
-        (update-f projector (-> projection :projection/id) projection)))
-    (let [projections ((-> p-pool :projections))]
-      (when store-f
-        (doseq [projection projections]
-          (store-f projector (-> projection :projection/id) projection)))
-      projections)))
+        (update-f (-> projection :projection/id) projection)))
+    (flush-f)
+    ((-> p-pool :projections))))
 
 
 

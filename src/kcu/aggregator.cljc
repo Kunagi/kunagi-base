@@ -274,20 +274,28 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn project-events [aggregator aggregate projectors]
+(defn project-events [aggregator aggregate projectors p-pools]
   (let [events (->> aggregate :exec :effects (filter event?))
         projections (reduce
                      (fn [projections projector]
                        (into projections
-                             (projector/handle-events projector nil nil events)))
+                             (projector/handle-events projector
+                                                      (get p-pools (-> projector :id))
+                                                      events)))
                      []
                      projectors)]
-    (assoc-in aggregate [:exec :projections] projections)))
+    (-> aggregate
+        (assoc-in [:exec :projections] projections))))
 
 
 (defn simulate-commands
   [aggregator commands projectors]
-  (let [ret {:aggregator aggregator
+  (let [p-pools (reduce (fn [p-pools projector]
+                          (assoc p-pools
+                                 (-> projector :id)
+                                 (projector/new-projection-pool projector nil nil)))
+                        {} projectors)
+        ret {:aggregator aggregator
              :commands commands
              :aggregate (-> (new-aggregate aggregator)
                             (assoc :devtools/uuid-idx (atom {})))
@@ -297,7 +305,8 @@
                    (let [command (as-command command)
                          aggregate (get ret :aggregate)
 
-                         aggregate (assoc aggregate :exec {:command command})
+                         aggregate (assoc aggregate
+                                          :exec {:command command})
 
                          time (-> ret :flow count inc)
                          aggregate (assoc aggregate
@@ -319,9 +328,13 @@
                            (catch #?(:clj Exception :cljs :default) ex
                              (assoc-in aggregate [:exec :events-exception] ex)))
 
+
                          aggregate
                          (try
-                           (project-events aggregator aggregate projectors)
+                           (project-events aggregator
+                                           aggregate
+                                           projectors
+                                           p-pools)
                            (catch #?(:clj Exception :cljs :default) ex
                              (assoc-in aggregate [:exec :projection-exception] ex)))
 
