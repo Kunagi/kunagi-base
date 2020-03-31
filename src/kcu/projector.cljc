@@ -55,22 +55,6 @@
      :projection/id projection-id}))
 
 
-;; (defn as-projection-ref
-;;   ([projector-id entity-id]
-;;    (if entity-id
-;;      [projector-id entity-id]
-;;      [projector-id]))
-;;   ([projection-ref]
-;;    (cond
-;;      (vector? projection-ref) (if (second projection-ref)
-;;                                 projection-ref
-;;                                 [(first projection-ref)])
-;;      (seq? projection-ref) (into [] projection-ref)
-;;      (keyword? projection-ref) [projection-ref]
-;;      :else (throw (ex-info (str "Invalid projection-ref `" projection-ref "`.")
-;;                            {:invalid-projection-ref projection-ref})))))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -95,62 +79,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;; (defn projection-ref
-;;   [projection]
-;;   (assert-projection projection)
-;;   (let [projector-id (get projection :projection/projector)
-;;         entity-id (get projection :projection/entity-id)]
-;;     (if entity-id
-;;       [])))
-
-;; (defn- apply-event
-;;   [projector projection event]
-;;   (assert-projector projector)
-;;   (assert-projection projection)
-;;   (let [[event-name event-args] event
-;;         projector-id (-> projector :id)
-;;         handler (get-in projector [:handlers event-name])
-;;         _ (when-not handler
-;;             (throw (ex-info (str "Projecting event `"
-;;                                  event-name
-;;                                  "` with projector `"
-;;                                  projector-id
-;;                                  "` failed. No handler for event.")
-;;                             {:projector-id projector-id
-;;                              :unknown-event event
-;;                              :known-events (-> projector :handlers keys)
-;;                              :projection projection})))
-;;         f (get handler :f)
-;;         projection (try
-;;                      (f projection event-args)
-;;                      (catch #?(:clj Exception :cljs :default) ex
-;;                         (throw (ex-info (str "Projecting event `"
-;;                                          event-name
-;;                                          "` with projector `"
-;;                                          projector-id
-;;                                          "` failed. Event handler crashed.")
-;;                                         {:projector-id projector-id
-;;                                          :event event
-;;                                          :projection projection}
-;;                                         ex))))]
-;;       (try
-;;         (u/assert-entity projection {:projection/projector ::projector-id})
-;;         (catch #?(:clj Exception :cljs :default) ex
-;;           (throw (ex-info (str "Projecting event `"
-;;                                event-name
-;;                                "` with projector `"
-;;                                projector-id
-;;                                "` failed. Event handler returned invalid projection. ")
-;;                           {:projector-id projector-id
-;;                            :event event
-;;                            :invalid-projection projection}
-;;                           ex))))
-;;       projection))
-
-
 (defn handler-projection-id-resolver [projector handler event]
-  (or (-> handler :options :id-resolver)
-      (-> projector :id-resolver)))
+  (if (get projector :singleton?)
+    (constantly true)
+    (or (-> handler :options :id-resolver)
+        (-> projector :id-resolver))))
 
 
 (defn- handle-event [projector get-projection event]
@@ -160,7 +93,24 @@
     (when handler
       (let [projector-id (-> projector :id)
             id-resolver (handler-projection-id-resolver projector handler event)
+            _ (when-not id-resolver
+                (throw (ex-info (str "Projecting event `"
+                                     event-name
+                                     "` with projector `"
+                                     projector-id
+                                     "` failed. Missing `:id-resolver` "
+                                     "or `singleton? true`.")
+                                {:projector-id projector-id
+                                 :event event})))
             entity-id (when id-resolver (id-resolver event))
+            _ (when-not (or entity-id (-> projector :singleton?))
+                (throw (ex-info (str "Projecting event `"
+                                     event-name
+                                     "` with projector `"
+                                     projector-id
+                                     "` failed. `id-resolver` provided no id.")
+                                {:projector-id projector-id
+                                 :event event})))
             projection (get-projection entity-id)
             f (get handler :f)
             projection (try
@@ -293,11 +243,3 @@
       ~f)))
 
 
-#?(:cljs (js/console.log (macroexpand-1 '(def-event :my-event (fn [])))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; (macroexpand
-;;  '(def-event :punched {} (fn [])))
-
-;; (def-event :punched {} (fn [])))
