@@ -151,9 +151,6 @@
          (-> step :inputs)))])
 
 
-
-
-
 (defn Aggregate-Step-Projection [projection-id step]
   (let [projection (->> step
                         :projections
@@ -177,7 +174,8 @@
          [Map-As-Stack (dissoc projection
                                :projection/projector
                                :projection/id
-                               :projection/handled-events)]]]])))
+                               :projection/handled-events
+                               :projection/type)]]]])))
 
 
 (defn Aggregate-Step-UiComponent [component step]
