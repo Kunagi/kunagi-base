@@ -195,7 +195,8 @@
          (-> projection :projection/id str)]
         [muic/Card
          {:style {:background-color color-ui}}
-         [(-> component :f) projection]]])]))
+         [muic/ErrorBoundary
+          [(-> component :f) projection]]]])]))
 
 
 (defn Aggregate-Command-Flow-Row
