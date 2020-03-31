@@ -151,11 +151,14 @@
          (-> step :inputs)))])
 
 
+(defn- projection-by-id [step projection-id]
+  (->> step
+       :projections
+       (filter #(= projection-id (get % :projection/id)))
+       first))
+
 (defn Aggregate-Step-Projection [projection-id step]
-  (let [projection (->> step
-                        :projections
-                        (filter #(= projection-id (get % :projection/id)))
-                        first)]
+  (let [projection (projection-by-id step projection-id)]
     (when projection
       [muic/Stack-1
        [:div
@@ -178,25 +181,22 @@
                                :projection/type)]]]])))
 
 
-(defn Aggregate-Step-UiComponent [component step]
-  (let [projections (->> step
-                         :projections
-                         (filter #(= (get component :model-type)
-                                     (get % :projection/type))))]
-    [muic/Stack-1
-     ;; [:span.monospace (-> component :id)]
-     (for [projection projections]
-       ^{:key (-> projection :id)}
-       [muic/Stack-1
-        [muic/Card
-         {:style {:background-color color-projection}}
-         (-> projection :projection/projector str)
-         " "
-         (-> projection :projection/id str)]
-        [muic/Card
-         {:style {:background-color color-ui}}
-         [muic/ErrorBoundary
-          [(-> component :f) projection]]]])]))
+(defn Aggregate-Step-UiComponent [component projection-id step]
+  (let [projection (projection-by-id step projection-id)]
+    (when (and projection (= (-> component :model-type)
+                             (-> (projector/projector
+                                  (-> projection :projection/projector))
+                                 :type)))
+      [muic/Stack-1
+       [muic/Card
+        {:style {:background-color color-projection}}
+        (-> projection :projection/projector str)
+        " "
+        (-> projection :projection/id str)]
+       [muic/Card
+        {:style {:background-color color-ui}}
+        [muic/ErrorBoundary
+         [(-> component :f) projection]]]])))
 
 
 (defn Aggregate-Command-Flow-Row
@@ -215,6 +215,16 @@
    [:td
     {:style {:padding-top (theme/spacing 2)}}
     text]])
+
+
+(defn- projection-ids-by-type [result model-type]
+  (reduce (fn [ids step]
+            (into ids (->> step
+                           :projections
+                           (filter #(= model-type (get % :projection/type)))
+                           (map #(get % :projection/id)))))
+          #{}
+          (get result :flow)))
 
 
 (defn Test-Flow
@@ -260,9 +270,10 @@
           [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection id)])
 
         [Aggregate-Command-Flow-Header "User Interface Components"]
-        (for [uic ui-components]
+        (for [uic ui-components
+              projection-id (projection-ids-by-type result (-> uic :model-type))]
           ^{:key [(-> uic :id) (-> uic :projector :id)]}
-          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-UiComponent uic)])]]]]))
+          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-UiComponent uic projection-id)])]]]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
