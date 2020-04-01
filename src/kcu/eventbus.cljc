@@ -2,41 +2,40 @@
   (:require
    [clojure.spec.alpha :as s]
 
-   [kcu.utils :as u]))
+   [kcu.utils :as u]
+   [kcu.registry :as registry]))
 
 
 (s/def ::handler-id qualified-keyword?)
 (s/def ::handler-f fn?)
+(s/def ::handler-options map?)
 
 (s/def ::event-name qualified-keyword?)
 
-(s/def ::eventbus-identifier (partial = ::eventbus))
-(s/def ::eventbus (s/keys :req [::eventbus-identifier]))
 
-
-(defn new-eventbus [options]
-  {::eventbus-identifier ::eventbus
-   :handlers {}
-   :options options})
+(defn new-eventbus []
+  {:handlers {}
+   :options {}})
 
 
 (defn handlers-for-event
   [eventbus event-name]
-  (u/assert-spec ::eventbus eventbus)
-  (->> eventbus
-       :handlers
-       vals
-       (filter #(= event-name (-> % :event)))))
+  (concat
+   (->> eventbus :handlers-by-event :event-handler/catch-all)
+   (->> eventbus
+        :handlers-by-event
+        (get event-name))))
 
 
-(defn reg-handler
+(defn add-handler
   [eventbus handler]
-  (u/assert-spec ::eventbus eventbus)
   (u/assert-entity handler {:id ::handler-id
                             :event ::event-name
-                            :f ::handler-f})
+                            :f ::handler-f
+                            :options ::handler-options})
   (-> eventbus
-      (assoc-in [:handlers (-> handler :id)] handler)))
+      (assoc-in [:handlers (-> handler :id)] handler)
+      (update-in [:handlers-by-event (-> handler :event)] conj handler)))
 
 
 (defn- handler->f [_eventbus event handler]
@@ -54,36 +53,60 @@
                         ex))))))
 
 
-(defn handle-event
-  [eventbus context event]
-  (u/assert-spec ::eventbus eventbus)
-  (u/assert-entity event {:event/name ::event-name})
-  (let [event-name (-> event :event/name)
-        handlers (handlers-for-event eventbus event-name)
-        handle-fs (map (partial eventbus event) handlers)]
-    (reduce (fn [context f]
-              (f context))
-            context handle-fs)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; effects
-
-(defonce !event-bus (atom {}))
 
 
-;; (defn reg-handler
-;;   [handler]
-;;   (let [handler-id (complete-handler handler)]
-;;     (swap! !bu assoc handler-id handler)
-;;     handler-id))
+(defn reg-handler
+  [handler-id event-name options f]
+  (registry/update-entity
+   :eventbus :singleton
+   (fn [eventbus]
+     (let [eventbus (or eventbus (new-eventbus))]
+       (add-handler eventbus {:id handler-id
+                              :event event-name
+                              :f f
+                              :options options}))))
+  handler-id)
 
 
-;; (defn dispatch!
-;;   [event]
-;;   (u/assert-entity event {:event/name ::event-name})
-;;   (let [event-name (-> event :event/name)
-;;         handlers (handlers-for-event event-name)]))
+(defn configure! [options]
+  (registry/update-entity :eventbus :singleton
+                          (fn [eventbus]
+                            (assoc eventbus :options options))))
+
+
+(defn eventbus []
+  (registry/entity :eventbus :singleton))
+
+
+(defn- handle-event [handler event context]
+  (try
+    ((-> handler :f) event context)
+    (catch #?(:clj Exception :cljs :default) ex
+      (throw (ex-info (str "Handling event `" (-> event :event/name) "` failed."
+                           " Event handler `" (-> handler :id) "` crashed. ")
+                      {:event event
+                       :hander handler
+                       :exception ex}
+                      ex))))
+  nil)
+
+
+(defn dispatch!
+  [context event]
+  (u/assert-entity event {:event/name ::event-name})
+  (let [event-name (-> event :event/name)
+        _ (tap> [:inf ::event (-> event :event/name) event])
+        eventbus (eventbus)
+        log-f (-> eventbus :log-f)
+        _ (when log-f (log-f event))
+        handlers (handlers-for-event eventbus event-name)]
+    (doseq [handler handlers]
+      (handle-event handler event context)))
+  nil)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; rich comments

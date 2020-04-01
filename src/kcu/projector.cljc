@@ -23,6 +23,7 @@
 
 (defn- new-projector [id]
   {:id id
+   :bounded-context (registry/bounded-context id)
    :handlers {}})
 
 
@@ -58,7 +59,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn new-projection-pool [projector load-f store-f]
+(defn new-projection-pool
+  [projector load-f store-f]
   (let [!projections (atom {})]
     {:get (fn [entity-id]
             (or
@@ -71,7 +73,7 @@
                       projection))
      :flush (fn []
               (when store-f
-                (doseq [projection @!projections]
+                (doseq [projection (-> @!projections vals)]
                   (store-f projector (-> projection :projection/id) projection))))
      :projections (fn [] (vals @!projections))}))
 
@@ -150,30 +152,6 @@
         (update-f (-> projection :projection/id) projection)))
     (flush-f)
     ((-> p-pool :projections))))
-
-
-
-;; (defn project
-;;   [projector projection events]
-;;   (assert-projector projector)
-;;   (assert-projection projection)
-;;   (let [ret {:projector projector
-;;              :events events
-;;              :projection projection
-;;              :flow []}]
-;;     (->> events
-;;          (reduce (fn [ret event]
-;;                    (let [projection (-> ret :projection)
-;;                          projection (apply-event projector projection event)
-;;                          flow (-> ret :flow)
-;;                          step {:event event
-;;                                :projection projection
-;;                                :index (count flow)}
-;;                          flow (conj flow step)]
-;;                      (-> ret
-;;                          (assoc :flow flow)
-;;                          (assoc :projection projection))))
-;;                  ret))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

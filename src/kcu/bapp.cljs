@@ -1,23 +1,46 @@
 (ns kcu.bapp
   (:refer-clojure :exclude [read])
-  #?(:cljs (:require-macros [kcu.bapp]))
+  (:require-macros [kcu.bapp])
   (:require
    [clojure.spec.alpha :as s]
+   [reagent.core :as r]
    [re-frame.core :as rf]
    [ajax.core :as ajax]
 
-   [kcu.utils :as u]))
+   [kcu.utils :as u]
+   [kcu.registry :as registry]
+   [kcu.eventbus :as eventbus]
+   [kcu.projector :as projector]))
 
 ;; FIXME updates on parent lenses must be prevented
 ;; FIXME updates on child lenses with durable parents
+;; TODO catch uncatched errors
 ;; TODO spec and validation for lenses
 ;; TODO spec for lense values
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn durable-uuid
+  [identifier]
+  (let [storage-key (str "uuid." identifier)
+        uuid (-> js/window .-localStorage (.getItem storage-key))]
+    (if uuid
+      uuid
+      (let [uuid (u/random-uuid-string)]
+        (-> js/window .-localStorage (.setItem storage-key uuid))
+        uuid))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def !send-message-to-server
   (atom (fn [_db _message]
           (tap> [:!!! ::send-message-to-server :not-implemented]))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; init-fns
 
@@ -31,10 +54,119 @@
 
 
 (defn init! []
-  (rf/dispatch-sync [::init]))
+  (rf/dispatch-sync [::init])
+  (eventbus/configure! {:dummy ::configuration})
+  (eventbus/dispatch!
+   {:dummy ::context}
+   {:event/name :bapp/initialized}))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; ui components
+
+
+(defn reg-component
+  [id component-f model-type options]
+  (registry/register
+   :ui-component
+   id
+   (merge
+    {:id id
+     :f component-f
+     :model-type model-type}
+    options))
+  id)
+
+
+(defn components []
+  (registry/entities :ui-component))
+
+
+(defn components-by-model-type [model-type]
+  (registry/entities-by :ui-component :model-type model-type))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; commands & events
+
+(defn dispatch
+  [event]
+  (eventbus/dispatch! {:dummy ::context} event))
+
+
+;;; projectors
+
+(defn- projection-localstorage-key [projector projection-id]
+  (str (name (-> projector :id))
+       (when projection-id
+         (str "/" projection-id))
+       ".edn"))
+
+(defn- load-projection [projector projection-id]
+  (tap> [:inf ::load-projection projector projection-id])
+  (-> js/window
+      .-localStorage
+      (.getItem (projection-localstorage-key projector projection-id))
+      u/decode-edn))
+
+(defn- store-projection [projector projection-id value]
+  (tap> [:inf ::store-projection projector projection-id value])
+  (-> js/window
+      .-localStorage
+      (.setItem (projection-localstorage-key projector projection-id)
+                (u/encode-edn value))))
+
+
+(defn projection-signal [projector-id projection-id]
+  (if-let [signal (-> (registry/maybe-entity :projection-signal
+                                             [projector-id projection-id])
+                      :atom)]
+    signal
+    (let [signal (r/atom nil)]
+      (registry/register :projection-signal
+                         [projector-id projection-id] {:atom signal})
+      signal)))
+
+
+(defn projection
+  ([projector-id]
+   (projection :singleton))
+  ([projector-id projection-id]
+   @(projection-signal projector-id projection-id)))
+
+
+(defn init-projector
+  [projector-id options]
+  (let [projector (projector/projector projector-id)
+        handler-id (keyword "bapp" (name projector-id))
+        bounded-context (-> projector :bounded-context)
+        durable? (-> options :durable?)]
+
+    (eventbus/reg-handler
+     handler-id :event-handler/catch-all {}
+     (fn [event context]
+       (let [p-pool (projector/new-projection-pool
+                     projector
+                     (fn [projector projection-id]
+                       (or (projection-signal (-> projector :id) projection-id)
+                           (when durable?
+                             (load-projection projector projection-id))))
+                     (fn [projector projection-id value]
+                       (reset!
+                        (projection-signal (-> projector :id) projection-id)
+                        value)))
+             event-name (-> event :event/name)]
+         (when (= (keyword (namespace event-name)) bounded-context)
+           (projector/handle-events projector
+                                    p-pool
+                                    [(assoc event :event/name
+                                            (keyword (name event-name)))])))))))
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; lenses
 
@@ -55,10 +187,9 @@
 (defn- store! [lense value]
   (tap> [:dbg ::store! {:lense (-> lense :id)
                         :value value}])
-  #?(:cljs (-> js/window
-               .-localStorage
-               (.setItem (storage-key lense) (u/encode-edn value)))
-     :clj (throw (ex-info "store! not implemented" {:lense lense :value value}))))
+  (-> js/window
+     .-localStorage
+     (.setItem (storage-key lense) (u/encode-edn value))))
 
 
 (defonce !loaded-lenses (atom #{}))
@@ -78,11 +209,10 @@
 
 
 (defn- load! [lense]
-  (let [value #?(:cljs (-> js/window
-                           .-localStorage
-                           (.getItem (storage-key lense))
-                           u/decode-edn)
-                 :clj (throw (ex-info "load! not implemented" {:lense lense})))
+  (let [value (-> js/window
+                  .-localStorage
+                  (.getItem (storage-key lense))
+                  u/decode-edn)
         value (or value (create-default-value! lense))]
     (swap! !loaded-lenses conj (-> lense :id))
     (tap> [:dbg ::load! {:lense (-> lense :id)
@@ -165,20 +295,11 @@
       ;;    event))
 
       lense)
-    (catch #?(:clj Exception :cljs :default) ex
+    (catch :default ex
       (throw (ex-info (str "Creating lense `" (-> lense :id) "` failed.")
                       {:lense lense
                        :cause ex}
                       ex)))))
-
-
-(defmacro def-lense
-  [sym lense]
-  (let [k (keyword (str sym))
-        id (keyword (str (ns-name *ns*)) (str sym))]
-    `(def ~sym (reg-lense (merge {:id ~id
-                                  :key ~k}
-                                 ~lense)))))
 
 
 (rf/reg-event-db
@@ -287,7 +408,7 @@
   (reduce (fn [db [id init-f]]
             (try
               (init-f db)
-              (catch #?(:clj Exception :cljs :default) ex
+              (catch :default ex
                 (tap> [:err ::init-f-failed {:id id :init-f init-f :ex ex}])
                 db)))
           db @!init-fs))

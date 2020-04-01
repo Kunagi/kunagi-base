@@ -7,7 +7,10 @@
 
 (s/def ::entity-type keyword?)
 (s/def ::entity-key (s/or :keyword keyword?
-                          :vector (s/coll-of keyword? :kind vector? :min-count 1)))
+                          :vector (s/coll-of (s/or :k keyword?
+                                                   :s string?)
+                                             :kind vector?
+                                             :min-count 1)))
 (s/def ::entity map?)
 
 (defonce REGISTRY (atom {}))
@@ -19,6 +22,11 @@
   (u/assert-spec ::entity entity)
   (tap> [:inf ::register [entity-type k]])
   (swap! REGISTRY assoc-in [entity-type k] entity))
+
+
+(defn maybe-entity
+  [entity-type k]
+  (get-in @REGISTRY [entity-type k]))
 
 
 (defn entity
@@ -51,6 +59,25 @@
                         (apply f entity args))))))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; bounded context
+
+
+;; TODO (reg-bounded-context bc-name namespace)
+(defn bounded-context [k]
+  (cond
+    (string? k) (keyword
+                 (if (-> k (#?(:clj .contains :cljs .includes) "."))
+                   (-> k (.substring 0 (-> k (.indexOf "."))))
+                   k))
+    (simple-keyword? k) (bounded-context (name k))
+    (qualified-keyword? k) (bounded-context (namespace k))
+    :else (throw (ex-info (str "Can not extract bounded context from `"
+                               k "´.")
+                          {:k k}))))
+
+(bounded-context :hello.world)
 
 ;; (defmacro def-event
 ;;   [sym & args]

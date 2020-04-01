@@ -1,4 +1,4 @@
-(ns kcu.aggregator-ui
+(ns kcu.simulator-ui
   (:require
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
@@ -7,7 +7,7 @@
    [mui-commons.theme :as theme]
 
    [kcu.utils :as u]
-   [kcu.ui :as ui]
+   [kcu.bapp :as bapp]
    [kcu.registry :as registry]
    [kcu.projector :as projector]
    [kcu.aggregator :as aggregator]))
@@ -199,7 +199,7 @@
          [(-> component :f) projection]]]])))
 
 
-(defn Aggregate-Command-Flow-Row
+(defn Row
   [result component-f]
   [:tr
    (for [step (-> result :flow)]
@@ -227,7 +227,7 @@
           (get result :flow)))
 
 
-(defn Test-Flow
+(defn CommandsFlow
   [flow]
   (let [aggregator (aggregator/aggregator (-> flow :aggregator))
         commands (-> flow :commands)
@@ -240,7 +240,7 @@
                            (into ret (map #(assoc uic :projector %))
                                      projectors)))
                        []
-                       (ui/components))
+                       (bapp/components))
         result (aggregator/simulate-commands aggregator commands projectors)
         projection-ids (reduce (fn [ids step]
                                  (into ids (->> step
@@ -253,27 +253,27 @@
       [:table {:style {:height "1px"}}
        [:tbody
         [Aggregate-Command-Flow-Header "Command"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-Command]
+        [Row result Aggregate-Step-Command]
 
         [Aggregate-Command-Flow-Header "Effects"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-Effects]
+        [Row result Aggregate-Step-Effects]
 
         [Aggregate-Command-Flow-Header "Aggregate State"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-State]
+        [Row result Aggregate-Step-State]
 
         [Aggregate-Command-Flow-Header "Used from Context"]
-        [Aggregate-Command-Flow-Row result Aggregate-Step-Inputs]
+        [Row result Aggregate-Step-Inputs]
 
         [Aggregate-Command-Flow-Header "Projections"]
         (for [id (sort projection-ids)]
           ^{:key id}
-          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-Projection id)])
+          [Row result (partial Aggregate-Step-Projection id)])
 
         [Aggregate-Command-Flow-Header "User Interface Components"]
         (for [uic ui-components
               projection-id (projection-ids-by-type result (-> uic :model-type))]
           ^{:key [(-> uic :id) (-> uic :projector :id)]}
-          [Aggregate-Command-Flow-Row result (partial Aggregate-Step-UiComponent uic projection-id)])]]]]))
+          [Row result (partial Aggregate-Step-UiComponent uic projection-id)])]]]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -281,7 +281,7 @@
 
 (defn- CommandFlowLink [flow]
   [muic/ActionCard
-   {:href (str "aggregators?flow=" (-> flow :id))}
+   {:href (str "simulator?flow=" (-> flow :id))}
    (-> flow :name name (.split "-") (.join " "))])
 
 
@@ -302,4 +302,4 @@
            [muic/Inline
             {:items flows
              :template [CommandFlowLink]}]])]
-       [Test-Flow flow])]))
+       [CommandsFlow flow])]))
