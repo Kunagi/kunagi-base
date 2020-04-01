@@ -149,3 +149,26 @@
             (f))))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; storage
+
+
+(defprotocol Storage
+  (store-value [storage storage-key storage-value])
+  (load-value [storage storage-key constructor-for-non-existent]))
+
+
+(defn storage-caching-with-atom [cache-atom target-storage]
+  "Storage which caches all values in a single atom."
+  (reify Storage
+    (store-value [_this k v]
+      (when target-storage
+        (store-value target-storage k v))
+      (swap! cache-atom assoc k v))
+    (load-value [this k constructor]
+      (if-let [value-from-cache (get @cache-atom k)]
+        value-from-cache
+        (when-let [value (load-value target-storage k constructor)]
+          (store-value this k value)
+          value)))))
