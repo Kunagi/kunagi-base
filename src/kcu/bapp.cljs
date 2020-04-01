@@ -119,12 +119,20 @@
                 (u/encode-edn value))))
 
 
+(defn- initial-projection-value [projector-id projection-id]
+  (let [projector (projector/projector projector-id)
+        durable? (-> projector :options :durable?)]
+    (if durable?
+      (or (load-projection projector projection-id)
+          (projector/new-projection projector projection-id))
+      (projector/new-projection projector projection-id))))
+
 (defn projection-signal [projector-id projection-id]
   (if-let [signal (-> (registry/maybe-entity :projection-signal
                                              [projector-id projection-id])
                       :atom)]
     signal
-    (let [signal (r/atom nil)]
+    (let [signal (r/atom (initial-projection-value projector-id projection-id))]
       (registry/register :projection-signal
                          [projector-id projection-id] {:atom signal})
       signal)))
@@ -144,13 +152,14 @@
         bounded-context (-> projector :bounded-context)
         durable? (-> options :durable?)]
 
+    ;; FIXME multiple registrations after namespace reload
     (eventbus/reg-handler
      handler-id :event-handler/catch-all {}
      (fn [event context]
        (let [p-pool (projector/new-projection-pool
                      projector
                      (fn [projector projection-id]
-                       (or (projection-signal (-> projector :id) projection-id)
+                       (or (projection (-> projector :id) projection-id)
                            (when durable?
                              (load-projection projector projection-id))))
                      (fn [projector projection-id value]
@@ -158,7 +167,10 @@
                         (projection-signal (-> projector :id) projection-id)
                         value)))
              event-name (-> event :event/name)]
-         (when (= (keyword (namespace event-name)) bounded-context)
+         (tap> [:!!! ::projector-event {:projector projector
+                                        :event-name event-name
+                                        :bounded-context bounded-context}])
+         (when (= (registry/bounded-context event-name) bounded-context)
            (projector/handle-events projector
                                     p-pool
                                     [(assoc event :event/name
