@@ -170,5 +170,5 @@
       (if-let [value-from-cache (get @cache-atom k)]
         value-from-cache
         (when-let [value (load-value target-storage k constructor)]
-          (store-value this k value)
+          (swap! cache-atom assoc k value)
           value)))))

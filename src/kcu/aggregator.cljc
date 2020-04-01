@@ -21,6 +21,7 @@
 
 (defn- new-aggregator [id]
   {:id id
+   :bounded-context (registry/bounded-context id)
    :command-handlers {}
    :event-handlers {}})
 
@@ -49,7 +50,8 @@
   [aggregator]
   (assert-aggregator aggregator)
   (let [aggregator-id (-> aggregator :id)]
-    {:aggregate/aggregator aggregator-id}))
+    {:aggregate/aggregator aggregator-id
+     :aggregate/tx-num 0}))
 
 
 ;; (defn projection
@@ -149,6 +151,7 @@
                              :known-commands (-> aggregator :command-handlers keys)})))
         f (get handler :f)
         !inputs (atom [])
+        aggregate (update aggregate :aggregate/tx-num inc)
         context-f (context-f aggregator aggregate !inputs)
         effects (try
                   (f aggregate command-args context-f)
@@ -199,6 +202,7 @@
                         [(first command) (or (second command)
                                              {})])
     (keyword? command) [command {}]
+    (map? command) [(-> command :command/name) command]
     :else (throw (ex-info (str "Illegal command `" command "`.")
                           {:illegal-command command}))))
 
@@ -215,7 +219,10 @@
                        effect
                        (-> effect
                            (assoc :event/time time)
-                           (assoc :event/id (provide-random-uuid aggregate)))))
+                           (assoc :event/id (provide-random-uuid aggregate))
+                           (assoc :aggregate/aggregator (get aggregate :aggregate/aggregator))
+                           (assoc :aggregate/id (get aggregate :aggregate/id))
+                           (assoc :aggregate/tx-num (get aggregate :aggregate/tx-num)))))
                    %)))
 
 
@@ -360,6 +367,9 @@
 (defn aggregator [aggregator-id]
   (registry/entity :aggregator aggregator-id))
 
+(defn aggregator-by-command [command-name]
+  (let [aggregator-id (registry/entity :aggregator-id-by-command command-name)]
+    (aggregator aggregator-id)))
 
 (defn aggregators []
   (registry/entities :aggregator))
@@ -380,9 +390,13 @@
   (let [handler {:aggregator-id aggregator-id
                  :command command-name
                  :f f
-                 :options options}]
+                 :options options}
+        global-command-name (keyword (name (registry/bounded-context aggregator-id))
+                                     (name command-name))]
     (update-aggregator aggregator-id
                        #(add-command-handler % handler))
+    (registry/register
+     :aggregator-id-by-command global-command-name aggregator-id)
     handler))
 
 

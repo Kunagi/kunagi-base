@@ -10,7 +10,8 @@
    [kcu.utils :as u]
    [kcu.registry :as registry]
    [kcu.eventbus :as eventbus]
-   [kcu.projector :as projector]))
+   [kcu.projector :as projector]
+   [kcu.system :as system]))
 
 ;; FIXME updates on parent lenses must be prevented
 ;; FIXME updates on child lenses with durable parents
@@ -60,6 +61,28 @@
    {:dummy ::context}
    {:event/name :bapp/initialized}))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn new-localstorage-store []
+  (reify u/Storage
+    (u/store-value [storage storage-key value]
+      (-> js/window
+        .-localStorage
+        (.setItem (if (string? storage-key)
+                    storage-key
+                    (u/encode-edn storage-key))
+                  (u/encode-edn value))))
+    (u/load-value [storage storage-key constructor]
+      (or (-> js/window
+              .-localStorage
+              (.getItem (if (string? storage-key)
+                          storage-key
+                          (u/encode-edn storage-key))))
+          (when-let [value (when constructor (constructor))]
+            (u/store-value storage storage-key value)
+            value)))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -91,90 +114,70 @@
 
 ;;; commands & events
 
-(defn dispatch
-  [event]
-  (eventbus/dispatch! {:dummy ::context} event))
+;; (defn dispatch
+;;   [event]
+;;   (eventbus/dispatch! {:dummy ::context} event))
 
 
 ;;; projectors
 
-(defn- projection-localstorage-key [projector projection-id]
-  (str (name (-> projector :id))
-       (when projection-id
-         (str "/" projection-id))
-       ".edn"))
 
-(defn- load-projection [projector projection-id]
-  (tap> [:inf ::load-projection projector projection-id])
-  (-> js/window
-      .-localStorage
-      (.getItem (projection-localstorage-key projector projection-id))
-      u/decode-edn))
+;; (defn- initial-projection-value [projector-id projection-id]
+;;   (let [projector (projector/projector projector-id)
+;;         durable? (-> projector :options :durable?)]
+;;     (if durable?
+;;       (or (load-projection projector projection-id)
+;;           (projector/new-projection projector projection-id))
+;;       (projector/new-projection projector projection-id))))
 
-(defn- store-projection [projector projection-id value]
-  (tap> [:inf ::store-projection projector projection-id value])
-  (-> js/window
-      .-localStorage
-      (.setItem (projection-localstorage-key projector projection-id)
-                (u/encode-edn value))))
-
-
-(defn- initial-projection-value [projector-id projection-id]
-  (let [projector (projector/projector projector-id)
-        durable? (-> projector :options :durable?)]
-    (if durable?
-      (or (load-projection projector projection-id)
-          (projector/new-projection projector projection-id))
-      (projector/new-projection projector projection-id))))
-
-(defn projection-signal [projector-id projection-id]
-  (if-let [signal (-> (registry/maybe-entity :projection-signal
-                                             [projector-id projection-id])
-                      :atom)]
-    signal
-    (let [signal (r/atom (initial-projection-value projector-id projection-id))]
-      (registry/register :projection-signal
-                         [projector-id projection-id] {:atom signal})
-      signal)))
+;; (defn projection-signal [projector-id projection-id]
+;;   (if-let [signal (-> (registry/maybe-entity :projection-signal
+;;                                              [projector-id projection-id])
+;;                       :atom)]
+;;     signal
+;;     (let [signal (r/atom (initial-projection-value projector-id projection-id))]
+;;       (registry/register :projection-signal
+;;                          [projector-id projection-id] {:atom signal})
+;;       signal)))
 
 
-(defn projection
-  ([projector-id]
-   (projection :singleton))
-  ([projector-id projection-id]
-   @(projection-signal projector-id projection-id)))
+;; (defn projection
+;;   ([projector-id]
+;;    (projection :singleton))
+;;   ([projector-id projection-id]
+;;    @(projection-signal projector-id projection-id)))
 
 
-(defn init-projector
-  [projector-id options]
-  (let [projector (projector/projector projector-id)
-        handler-id (keyword "bapp" (name projector-id))
-        bounded-context (-> projector :bounded-context)
-        durable? (-> options :durable?)]
+;; (defn init-projector
+;;   [projector-id options]
+;;   (let [projector (projector/projector projector-id)
+;;         handler-id (keyword "bapp" (name projector-id))
+;;         bounded-context (-> projector :bounded-context)
+;;         durable? (-> options :durable?)]
 
-    ;; FIXME multiple registrations after namespace reload
-    (eventbus/reg-handler
-     handler-id :event-handler/catch-all {}
-     (fn [event context]
-       (let [p-pool (projector/new-projection-pool
-                     projector
-                     (fn [projector projection-id]
-                       (or (projection (-> projector :id) projection-id)
-                           (when durable?
-                             (load-projection projector projection-id))))
-                     (fn [projector projection-id value]
-                       (reset!
-                        (projection-signal (-> projector :id) projection-id)
-                        value)))
-             event-name (-> event :event/name)]
-         (tap> [:!!! ::projector-event {:projector projector
-                                        :event-name event-name
-                                        :bounded-context bounded-context}])
-         (when (= (registry/bounded-context event-name) bounded-context)
-           (projector/handle-events projector
-                                    p-pool
-                                    [(assoc event :event/name
-                                            (keyword (name event-name)))])))))))
+;;     ;; FIXME multiple registrations after namespace reload
+;;     (eventbus/reg-handler
+;;      handler-id :event-handler/catch-all {}
+;;      (fn [event context]
+;;        (let [p-pool (projector/new-projection-pool
+;;                      projector
+;;                      (fn [projector projection-id]
+;;                        (or (projection (-> projector :id) projection-id)
+;;                            (when durable?
+;;                              (load-projection projector projection-id))))
+;;                      (fn [projector projection-id value]
+;;                        (reset!
+;;                         (projection-signal (-> projector :id) projection-id)
+;;                         value)))
+;;              event-name (-> event :event/name)]
+;;          (tap> [:!!! ::projector-event {:projector projector
+;;                                         :event-name event-name
+;;                                         :bounded-context bounded-context}])
+;;          (when (= (registry/bounded-context event-name) bounded-context)
+;;            (projector/handle-events projector
+;;                                     p-pool
+;;                                     [(assoc event :event/name
+;;                                             (keyword (name event-name)))])))))))
 
 
 

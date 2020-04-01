@@ -11,7 +11,7 @@
                                                    :s string?)
                                              :kind vector?
                                              :min-count 1)))
-(s/def ::entity map?)
+(s/def ::entity any?)
 
 (defonce REGISTRY (atom {}))
 
