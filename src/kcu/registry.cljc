@@ -77,7 +77,12 @@
                                k "´.")
                           {:k k}))))
 
-(bounded-context :hello.world)
+#_(bounded-context :hello.world)
+
+
+(defn as-global-keyword [k bounded-context]
+  (u/assert-spec simple-keyword? k)
+  (keyword (name bounded-context) (name k)))
 
 ;; (defmacro def-event
 ;;   [sym & args]

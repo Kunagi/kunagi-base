@@ -78,7 +78,7 @@
                          subject-description
                          " failed. "
                          "Entity is `nil`.")
-                    nil)))
+                    {})))
   (when-not (map? entity)
     (throw (ex-info (str "Asserting entity "
                          subject-description
@@ -86,7 +86,7 @@
                          "Entity is not a map: `"
                          entity
                          "`.")
-                    nil)))
+                    {})))
   (doseq [k (keys req)]
     (when-not (contains? entity k)
       (throw (ex-info (str "Asserting entity "
@@ -155,8 +155,8 @@
 
 
 (defprotocol Storage
-  (store-value [storage storage-key storage-value])
-  (load-value [storage storage-key constructor-for-non-existent]))
+  (store-value [storage storage-key value])
+  (load-value [storage storage-key]))
 
 
 (defn storage-caching-with-atom [cache-atom target-storage]
@@ -166,9 +166,9 @@
       (when target-storage
         (store-value target-storage k v))
       (swap! cache-atom assoc k v))
-    (load-value [this k constructor]
+    (load-value [this k]
       (if-let [value-from-cache (get @cache-atom k)]
         value-from-cache
-        (when-let [value (load-value target-storage k constructor)]
+        (when-let [value (load-value target-storage k)]
           (swap! cache-atom assoc k value)
           value)))))

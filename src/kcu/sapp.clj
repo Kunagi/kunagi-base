@@ -7,7 +7,9 @@
    [kcu.utils :as u]
    [kcu.query :as query]
    [kcu.txa :as txa]
-   [kcu.sapp-conversation :as conversation]))
+   [kcu.system :as system]
+   [kcu.sapp-conversation :as conversation]
+   [kcu.files :as files]))
 
 
 (def data-dir "app-data")
@@ -102,6 +104,53 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; aggregator
+;;; system
 
 
+(defn aggregate-dir [aggregator-id aggregate-id]
+  (str data-dir
+       "/aggregates/"
+       (name aggregator-id)
+       (when aggregate-id
+         (str "/" (cond
+                    (simple-keyword? aggregate-id) (name aggregate-id)
+                    (qualified-keyword? aggregate-id)
+                    (str (namespace aggregate-id) "_" (name aggregate-id))
+                    :else aggregate-id)))))
+
+
+(defn aggregate-value-file [aggregator-id aggregate-id]
+  (str (aggregate-dir aggregator-id aggregate-id) "/value.edn"))
+
+
+(defn aggregate-storage []
+  (reify system/AggregateStorage
+
+    (system/store-aggregate-value [_this aggregator-id aggregate-id value]
+      (files/write-edn (aggregate-value-file aggregator-id aggregate-id) value))
+
+    (system/store-aggregate-effects [_this aggregator-id aggregate-id effects]
+      (let [dir (aggregate-dir aggregator-id aggregate-id)
+            groups (group-by (fn [effect]
+                               (or (when (-> effect :event/name) :events)
+                                   :effects))
+                             effects)]
+        (doseq [[group-key effects] groups]
+          (doseq [effect effects]
+            (tap> [:!!! ::store {:effect effect}])
+            (files/append-edn (str dir "/" (name group-key) ".edn") effect)))))
+
+    (system/load-aggregate-value [_this aggregator-id aggregate-id]
+      (files/read-edn (aggregate-value-file aggregator-id aggregate-id)))))
+
+
+(comment
+  (do
+
+    (def system (system/new-system :test-sapp {:aggregate-storage (aggregate-storage)}))
+
+    (system/dispatch-command system
+                             {:command/name :wartsapp/ziehe-nummer
+                              :patient/id "p1"})
+
+    (-> system :transactions deref first :tx-num)))

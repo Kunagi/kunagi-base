@@ -16,6 +16,20 @@
      (spit file (u/encode-edn data pretty?)))))
 
 
+(defn append-edn
+  ([file data]
+   (append-edn file data true))
+  ([file data pretty?]
+   (let [file (io/as-file file)
+         dir (-> file .getParentFile)]
+     (when-not (-> dir .exists) (-> dir .mkdirs))
+     (spit file
+           (if pretty?
+             (str "\n" (u/encode-edn data pretty?))
+             (u/encode-edn data pretty?))
+           :append true))))
+
+
 (defn write-entity
   "Writes `entity` as EDN to a file in `dir`.
   The filename is created from entities `:id` or `:db/id`."

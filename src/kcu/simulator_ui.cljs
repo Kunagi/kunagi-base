@@ -8,6 +8,7 @@
 
    [kcu.utils :as u]
    [kcu.bapp :as bapp]
+   [kcu.system :as system]
    [kcu.registry :as registry]
    [kcu.projector :as projector]
    [kcu.aggregator :as aggregator]))
@@ -65,12 +66,15 @@
    " "
    entity])
 
-(defn CommandCard [[command-name command-args]]
+(defn CommandCard [command]
   [muic/Card
    {:style {:background-color color-command}}
    [muic/Stack-1
-    [:div.b command-name]
-    [Map-As-Stack command-args]]])
+    [:div.b (-> command :command/name str)]
+    [Map-As-Stack (dissoc command
+                          :command/name
+                          :command/id
+                          :command/time)]]])
 
 
 (defn EventCard [event]
@@ -78,7 +82,14 @@
    {:style {:background-color color-event}}
    [muic/Stack-1
     [:div.b (-> event :event/name str)]
-    [Map-As-Stack (dissoc event :event/name :event/id :event/time)]]])
+    [Map-As-Stack (dissoc event :event/name
+                          :event/id
+                          :event/time
+                          :aggregate/aggregator
+                          :aggregate/id
+                          :aggregate/tx-num
+                          :aggregate/tx-id
+                          :aggregate/tx-time)]]])
 
 
 (defn ProjectionDataCard [projection]
@@ -89,21 +100,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn Aggregate-Step-Command [step]
-  (let [command (-> step :command)]
+(defn TxCommand [tx]
+  (let [command (-> tx :command)]
     [muic/Stack-1
      ;; [muic/Data (->> step :projection-results vals)]
      [CommandCard command]
-     (when-let [exception (-> step :command-exception)]
+     ;; FIXME exceptions / errors
+     ;; [muic/Data (-> tx :keys)]
+     (when-let [exception (-> tx :command-exception)]
        [muic/ExceptionCard exception])
-     (when-let [ex (-> step :events-exception)]
+     (when-let [ex (-> tx :events-exception)]
        [muic/ExceptionCard ex])
-     (when-let [ex (-> step :projection-exception)]
+     (when-let [ex (-> tx :projection-exception)]
        [muic/ExceptionCard ex])]))
 
 
-(defn Aggregate-Step-Effects [step]
-  (let [effects (-> step :effects)]
+(defn TxEffects [tx]
+  (let [effects (-> tx :effects)]
     [muic/Stack-1
      (for [effect effects]
        (cond
@@ -119,18 +132,22 @@
           [muic/Data effect]]))]))
 
 
-(defn Aggregate-Step-State [step]
-  (let [aggregate (-> step :aggregate)]
+(defn TxAggregate [tx]
+  (let [aggregate (-> tx :aggregate)]
     [muic/Stack-1
-     (for [event (-> step :applied-events)]
+     (for [event (-> tx :applied-events)]
        ^{:key (-> event :event/id)}
        [EventCard event])
      [muic/Card
       {:style {:background-color color-aggregate}}
-      [Map-As-Stack aggregate]]]))
+      [Map-As-Stack (dissoc aggregate
+                            :aggregate/tx-num
+                            :aggregate/tx-id
+                            :aggregate/tx-time
+                            :aggregate/aggregator
+                            :aggregate/id)]]]))
 
-
-(defn Aggregate-Step-Inputs [step]
+(defn TxInputs [tx]
   [:div
    (into
     [muic/Stack-1]
@@ -148,23 +165,25 @@
               {:style {:background-color color-context}}
               [muic/Data input]]))
 
-         (-> step :inputs)))])
+         (-> tx :inputs)))])
 
 
-(defn- projection-by-id [step projection-id]
-  (->> step
+(defn- projection-by-id [tx projection-id]
+  (->> tx
        :projections
+       vals
        (filter #(= projection-id (get % :projection/id)))
        first))
 
-(defn Aggregate-Step-Projection [projection-id step]
-  (let [projection (projection-by-id step projection-id)]
+
+(defn TxProjection [projection-id tx]
+  (let [projection (projection-by-id tx projection-id)]
     (when projection
       [muic/Stack-1
        [:div
         [:span.b (-> projection :projection/projector) " "]
         [:span.monospace projection-id]]
-       (for [event (->> step
+       (for [event (->> tx
                         :effects
                         (filter aggregator/event?)
                         (filter #(contains? (-> projection :projection/handled-events)
@@ -180,9 +199,8 @@
                                :projection/handled-events
                                :projection/type)]]]])))
 
-
-(defn Aggregate-Step-UiComponent [component projection-id step]
-  (let [projection (projection-by-id step projection-id)]
+(defn TxUiComponent [[component projection-id] tx]
+  (let [projection (projection-by-id tx projection-id)]
     (when (and projection (= (-> component :model-type)
                              (-> (projector/projector
                                   (-> projection :projection/projector))
@@ -200,80 +218,96 @@
 
 
 (defn Row
-  [result component-f]
+  [system component-f]
   [:tr
-   (for [step (-> result :flow)]
-     ^{:key (-> step :index)}
+   (for [tx (-> system system/transactions)]
+     ^{:key (-> tx :tx-num)}
      [:td
       [muic/Card
        {:style {:height "100%"}}
-       [component-f step]]])])
+       [component-f tx]]])])
 
 
-(defn Aggregate-Command-Flow-Header [text]
+(defn HeaderRow [text]
   [:tr
    [:td
     {:style {:padding-top (theme/spacing 2)}}
     text]])
 
 
-(defn- projection-ids-by-type [result model-type]
-  (reduce (fn [ids step]
-            (into ids (->> step
-                           :projections
-                           (filter #(= model-type (get % :projection/type)))
-                           (map #(get % :projection/id)))))
-          #{}
-          (get result :flow)))
+(defn- projection-ids-by-type [system model-type]
+  (->> system
+       system/loaded-projections
+       (filter #(= model-type (get % :projection/type)))
+       (map :projection/id)
+       (into [])))
+
+
+(defn Test [& args]
+  [:div (str args)])
+
+
+(defn uics-and-projections [system]
+  (let [ui-components (reduce
+                        (fn [ret uic]
+                          (let [model-type (-> uic :model-type)
+                                projectors (projector/projectors-by-type
+                                            model-type)]
+                            (into ret (map #(assoc uic :projector %))
+                                  projectors)))
+                        []
+                        (bapp/components))]
+    (reduce (fn [ret uic]
+              (into
+               ret
+               (reduce (fn [ret projection-id]
+                         (conj ret [uic projection-id]))
+                       [] (projection-ids-by-type system (-> uic :model-type)))))
+            [] ui-components)))
+    ;; (for [uic ui-components
+    ;;       projection-id (projection-ids-by-type system (-> uic :model-type))]
+    ;;   ["x" projection-id])))
 
 
 (defn CommandsFlow
   [flow]
-  (let [aggregator (aggregator/aggregator (-> flow :aggregator))
-        commands (-> flow :commands)
-        projectors (projector/projectors)
-        ui-components (reduce
-                       (fn [ret uic]
-                         (let [model-type (-> uic :model-type)
-                               projectors (projector/projectors-by-type
-                                           model-type)]
-                           (into ret (map #(assoc uic :projector %))
-                                     projectors)))
-                       []
-                       (bapp/components))
-        result (aggregator/simulate-commands aggregator commands projectors)
-        projection-ids (reduce (fn [ids step]
-                                 (into ids (->> step
-                                                :projections
-                                                (map #(get % :projection/id)))))
-                               #{}
-                               (get result :flow))]
+  (let [commands (-> flow :commands)
+        system (-> (system/new-system :simulator {})
+                   (system/dispatch-commands commands))
+
+        projection-ids (->> system
+                            system/loaded-projections
+                            (map :projection/id))]
     [muic/Stack-1
+     ;[muic/Card [muic/Data (uics-and-projections system)]]
      [:div {:style {:overflow-x :auto}}
       [:table {:style {:height "1px"}}
        [:tbody
-        [Aggregate-Command-Flow-Header "Command"]
-        [Row result Aggregate-Step-Command]
+        [HeaderRow "Command"]
+        [Row system TxCommand]
 
-        [Aggregate-Command-Flow-Header "Effects"]
-        [Row result Aggregate-Step-Effects]
+        [HeaderRow "Effects"]
+        [Row system TxEffects]
 
-        [Aggregate-Command-Flow-Header "Aggregate State"]
-        [Row result Aggregate-Step-State]
+        [HeaderRow "Aggregate State"]
+        [Row system TxAggregate]
 
-        [Aggregate-Command-Flow-Header "Used from Context"]
-        [Row result Aggregate-Step-Inputs]
+        [HeaderRow "Used from Context"]
+        [Row system TxInputs]
 
-        [Aggregate-Command-Flow-Header "Projections"]
+        [HeaderRow "Projections"]
         (for [id (sort projection-ids)]
           ^{:key id}
-          [Row result (partial Aggregate-Step-Projection id)])
+          [Row system (partial TxProjection id)])
 
-        [Aggregate-Command-Flow-Header "User Interface Components"]
-        (for [uic ui-components
-              projection-id (projection-ids-by-type result (-> uic :model-type))]
-          ^{:key [(-> uic :id) (-> uic :projector :id)]}
-          [Row result (partial Aggregate-Step-UiComponent uic projection-id)])]]]]))
+        [HeaderRow "User Interface Components"]
+        (for [ui-and-projection (uics-and-projections system)]
+          ^{:key ui-and-projection}
+          [Row system (partial TxUiComponent ui-and-projection)])]]]])) ;projection-id)])]]]]))
+        ;; (for [uic ui-components]
+        ;;       projection-id (projection-ids-by-type system (-> uic :model-type))]
+        ;;   ^{:key [(-> uic :id) (-> uic :projector :id)]}
+        ;;   [Row system (partial TxUiComponent uic)])]]]])) ;projection-id)])]]]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

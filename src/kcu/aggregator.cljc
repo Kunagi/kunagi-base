@@ -13,9 +13,7 @@
 (s/def ::handler-f fn?)
 (s/def ::handler-options map?)
 
-(s/def ::command-name simple-keyword?)
-(s/def ::command-args map?)
-(s/def ::command (s/cat :name ::command-name :args ::command-args))
+(s/def ::command-name qualified-keyword?)
 
 (s/def ::event-name simple-keyword?)
 
@@ -107,7 +105,6 @@
                               [input-type (into [] input-args)]
                               input-type)))
     (case input-type
-      ;; :projection (provide-projection aggregator aggregate input-args)
       :timestamp (or (-> aggregate :timestamp)
                      (u/current-time-millis))
       :random-uuid (provide-random-uuid aggregate)
@@ -120,24 +117,12 @@
   (if (map? effects)
     (conform-effects-from-command [effects])
     effects))
-  ;; (try
-  ;;   (u/assert-entity effects {} {:events map?})
-  ;;   (catch #?(:clj Exception :cljs :default) ex
-  ;;     (throw (ex-info (str "Executing command `"
-  ;;                          command-name
-  ;;                          "` with aggregator `"
-  ;;                          aggregator-id
-  ;;                          "` failed. Command handler returned invalid effects. ")
-  ;;                     {:aggregator-id aggregator-id
-  ;;                      :command command
-  ;;                      :invalid-effects effects}
-  ;;                     ex)))))
 
 
 (defn- apply-command
   [aggregator aggregate command]
-  (u/assert-spec ::command command)
-  (let [[command-name command-args] command
+  (u/assert-entity command {:command/name ::command-name})
+  (let [command-name (-> command :command/name)
         aggregator-id (-> aggregator :id)
         handler (get-in aggregator [:command-handlers command-name])
         _ (when-not handler
@@ -151,10 +136,15 @@
                              :known-commands (-> aggregator :command-handlers keys)})))
         f (get handler :f)
         !inputs (atom [])
-        aggregate (update aggregate :aggregate/tx-num inc)
+        tx-num (inc (get aggregate :aggregate/tx-num))
+        tx-id (u/random-uuid-string)
+        tx-time (u/current-time-millis)
+        aggregate (assoc aggregate :aggregate/tx-num tx-num
+                                   :aggregate/tx-id tx-id
+                                   :aggregate/tx-time tx-time)
         context-f (context-f aggregator aggregate !inputs)
         effects (try
-                  (f aggregate command-args context-f)
+                  (f aggregate command context-f)
                   (catch #?(:clj Exception :cljs :default) ex
                      (throw (ex-info (str "Executing command `"
                                       command-name
@@ -167,6 +157,9 @@
         effects (conform-effects-from-command effects)]
       (assoc aggregate
              :exec {:command command
+                    :tx-num tx-num
+                    :tx-id tx-id
+                    :tx-time tx-time
                     :effects effects
                     :inputs @!inputs})))
 
@@ -195,17 +188,6 @@
 ;;             events-map)))
 
 
-(defn as-command [command]
-  (cond
-    (vector? command) (if (= 2 (count command))
-                        command
-                        [(first command) (or (second command)
-                                             {})])
-    (keyword? command) [command {}]
-    (map? command) [(-> command :command/name) command]
-    :else (throw (ex-info (str "Illegal command `" command "`.")
-                          {:illegal-command command}))))
-
 (defn event?
   [effect]
   (and (map? effect) (contains? effect :event/name)))
@@ -222,7 +204,9 @@
                            (assoc :event/id (provide-random-uuid aggregate))
                            (assoc :aggregate/aggregator (get aggregate :aggregate/aggregator))
                            (assoc :aggregate/id (get aggregate :aggregate/id))
-                           (assoc :aggregate/tx-num (get aggregate :aggregate/tx-num)))))
+                           (assoc :aggregate/tx-num (get aggregate :aggregate/tx-num))
+                           (assoc :aggregate/tx-id (get aggregate :aggregate/tx-id))
+                           (assoc :aggregate/tx-time (get aggregate :aggregate/tx-time)))))
                    %)))
 
 
@@ -267,8 +251,8 @@
   [aggregator aggregate command]
   (assert-aggregator aggregator)
   (assert-aggregate aggregate)
-  (let [command (as-command command)
-        aggregate (or aggregate
+  (u/assert-entity command {:command/name ::command-name})
+  (let [aggregate (or aggregate
                       (new-aggregate aggregator))
         aggregate (dissoc aggregate :exec)
         aggregate (apply-command aggregator aggregate command)
@@ -309,8 +293,7 @@
              :flow []}]
     (->> commands
          (reduce (fn [ret command]
-                   (let [command (as-command command)
-                         aggregate (get ret :aggregate)
+                   (let [aggregate (get ret :aggregate)
 
                          aggregate (assoc aggregate
                                           :exec {:command command})
@@ -384,19 +367,20 @@
 (defn reg-command-handler
   [aggregator-id command-name options f]
   (u/assert-spec ::aggregator-id aggregator-id)
-  (u/assert-spec ::command-name command-name)
+  (u/assert-spec simple-keyword? command-name)
   (u/assert-spec ::handler-f f)
   (u/assert-spec ::handler-options options)
-  (let [handler {:aggregator-id aggregator-id
+  (let [command-name (registry/as-global-keyword
+                      command-name
+                      (registry/bounded-context aggregator-id))
+        handler {:aggregator-id aggregator-id
                  :command command-name
                  :f f
-                 :options options}
-        global-command-name (keyword (name (registry/bounded-context aggregator-id))
-                                     (name command-name))]
+                 :options options}]
     (update-aggregator aggregator-id
                        #(add-command-handler % handler))
     (registry/register
-     :aggregator-id-by-command global-command-name aggregator-id)
+     :aggregator-id-by-command command-name aggregator-id)
     handler))
 
 
@@ -437,12 +421,17 @@
 
 (defn reg-test-flow
   [aggregator-id flow-name options commands]
-  (registry/register :command-test-flow [aggregator-id flow-name]
-                     (assoc options
-                            :id [aggregator-id flow-name]
-                            :aggregator aggregator-id
-                            :name flow-name
-                            :commands commands)))
+  (let [commands (map #(assoc % :command/name
+                              (registry/as-global-keyword
+                               (get % :command/name)
+                               (registry/bounded-context aggregator-id)))
+                      commands)]
+    (registry/register :command-test-flow [aggregator-id flow-name]
+                       (assoc options
+                              :id [aggregator-id flow-name]
+                              :aggregator aggregator-id
+                              :name flow-name
+                              :commands commands))))
 
 
 (defmacro def-test-flow

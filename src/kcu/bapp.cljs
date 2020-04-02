@@ -55,11 +55,12 @@
 
 
 (defn init! []
-  (rf/dispatch-sync [::init])
-  (eventbus/configure! {:dummy ::configuration})
-  (eventbus/dispatch!
-   {:dummy ::context}
-   {:event/name :bapp/initialized}))
+  (rf/dispatch-sync [::init]))
+  ;; (eventbus/configure! {:dummy ::configuration})
+  ;; (eventbus/dispatch!
+  ;;  (eventbus/eventbus)
+  ;;  {:event/name :bapp/initialized}
+  ;;  {:dummy ::context}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -73,15 +74,12 @@
                     storage-key
                     (u/encode-edn storage-key))
                   (u/encode-edn value))))
-    (u/load-value [storage storage-key constructor]
-      (or (-> js/window
-              .-localStorage
-              (.getItem (if (string? storage-key)
-                          storage-key
-                          (u/encode-edn storage-key))))
-          (when-let [value (when constructor (constructor))]
-            (u/store-value storage storage-key value)
-            value)))))
+    (u/load-value [storage storage-key]
+      (-> js/window
+          .-localStorage
+          (.getItem (if (string? storage-key)
+                      storage-key
+                      (u/encode-edn storage-key)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
