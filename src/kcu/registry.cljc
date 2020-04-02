@@ -46,6 +46,11 @@
   (-> @REGISTRY (get entity-type) vals))
 
 
+(defn all
+  []
+  @REGISTRY)
+
+
 (defn entities-by [entity-type filter-k filter-v]
   (->> (entities entity-type)
        (filter #(= filter-v (get % filter-k)))))
@@ -81,8 +86,10 @@
 
 
 (defn as-global-keyword [k bounded-context]
-  (u/assert-spec simple-keyword? k)
-  (keyword (name bounded-context) (name k)))
+  (when k
+    (u/assert-spec simple-keyword? k)
+    (keyword (name bounded-context) (name k))))
+
 
 ;; (defmacro def-event
 ;;   [sym & args]

@@ -41,6 +41,26 @@
           (tap> [:!!! ::send-message-to-server :not-implemented]))))
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defonce system (system/new-system :bapp {}))
+
+
+;; TODO rename to something with "query"
+(defn projection-bucket [projector-id projection-id]
+  (system/projection-bucket system projector-id projection-id))
+
+
+(defn projection [projector-id projection-id]
+  (system/projection system projector-id projection-id))
+
+
+(defn dispatch [command]
+  (system/dispatch-command system command))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; init-fns
