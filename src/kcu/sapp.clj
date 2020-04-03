@@ -144,9 +144,33 @@
       (files/read-edn (aggregate-value-file aggregator-id aggregate-id)))))
 
 
+(defn projection-value-file [projector-id projection-id]
+  (str data-dir
+       "/projections/"
+       (name projector-id)
+       (when projection-id
+         (str "/" (cond
+                    (simple-keyword? projection-id) (name projection-id)
+                    (qualified-keyword? projection-id)
+                    (str (namespace projection-id) "_" (name projection-id))
+                    :else projection-id)))
+       ".edn"))
+
+
+(defn projection-storage []
+  (reify system/ProjectionStorage
+
+    (system/store-projection-value [_this projector-id projection-id value]
+      (files/write-edn (projection-value-file projector-id projection-id) value))
+
+    (system/load-projection-value [_this projector-id projection-id]
+      (files/read-edn (projection-value-file projector-id projection-id)))))
+
+
 (defonce system (system/new-system
                  :sapp
-                 {:aggregate-storage (aggregate-storage)}))
+                 {:aggregate-storage (aggregate-storage)
+                  :projection-storage (projection-storage)}))
 
 
 (defn dispatch [command]

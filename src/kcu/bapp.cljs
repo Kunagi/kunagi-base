@@ -6,8 +6,10 @@
    [reagent.core :as r]
    [re-frame.core :as rf]
    [ajax.core :as ajax]
+   [taoensso.sente  :as sente]
 
    [kcu.utils :as u]
+   [kcu.butils :as bu]
    [kcu.registry :as registry]
    [kcu.eventbus :as eventbus]
    [kcu.projector :as projector]
@@ -37,24 +39,82 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(def !send-message-to-server
-  (atom (fn [_db _message]
-          (tap> [:!!! ::send-message-to-server :not-implemented]))))
+(defonce SENTE_SOCKET (r/atom nil))
+
+(defonce SENTE_STATE (r/atom nil))
+
+
+(defn- on-sente-state-changed [_ _ _ state]
+  (tap> [:dbg ::on-sente-state-changed state])
+  (reset! SENTE_STATE state))
+
+
+(defmulti on-server-message (fn [message-id _payload] message-id))
+
+(defmethod on-server-message :chsk/ws-ping [_ _])
+
+
+(defn- on-sente-message-received [message]
+  (when (= :chsk/recv (-> message :id))
+    (let [[message-id payload] (-> message :event second)]
+      (tap> [:dbg ::on-sente-message-received message-id payload])
+      (on-server-message message-id payload))))
+
+
+(defn connect-to-server []
+  (tap> [:dbg ::connect-to-server])
+  (let [socket (sente/make-channel-socket-client! "/chsk" {:type :auto})
+        ch-recv (-> socket :ch-recv)
+        state (-> socket :state)]
+    (reset! SENTE_SOCKET socket)
+    (add-watch state ::status on-sente-state-changed)
+    (sente/start-client-chsk-router! ch-recv on-sente-message-received)
+    socket))
+
+
+(defn send-message-to-server [message]
+  (tap> [:dbg ::send-message-to-server message])
+  (if (get @SENTE_STATE :open?)
+    ((get @SENTE_SOCKET :send-fn) message)
+    (.setTimeout js/window
+                 #(send-message-to-server message)
+                 1000)))
 
 
 (defn dispatch-on-server [command]
-  (rf/dispatch [:comm-async/send-message [::dispatch command]]))
-
-
-(defonce SUBSCRIPTIONS_ON_SERVER (atom #{}))
-
+  (send-message-to-server [::dispatch command]))
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn projection-value-key [projector-id projection-id]
+  (str "projections/"
+       (name projector-id)
+       (when projection-id
+         (str "/" (cond
+                    (simple-keyword? projection-id) (name projection-id)
+                    (qualified-keyword? projection-id)
+                    (str (namespace projection-id) "_" (name projection-id))
+                    :else projection-id)))
+       ".edn"))
 
-(defonce system (system/new-system :bapp {}))
+
+(defn projection-storage []
+  (reify system/ProjectionStorage
+
+    (system/store-projection-value [_this projector-id projection-id value]
+      (bu/set-to-local-storage
+       (projection-value-key projector-id projection-id) value))
+
+    (system/load-projection-value [_this projector-id projection-id]
+      (bu/get-from-local-storage
+       (projection-value-key projector-id projection-id)))))
+
+
+(defonce system (system/new-system
+                 :bapp
+                 {:projection-storage (projection-storage)}))
 
 
 ;; TODO rename to something with "query"
@@ -70,23 +130,25 @@
   (system/dispatch-command system command))
 
 
+;; FIXME resend subscription requenst when server restarted
+
+(defonce SUBSCRIPTIONS_ON_SERVER (atom #{}))
+
+
 (defn subscribe-on-server [query]
   (when-not (contains? @SUBSCRIPTIONS_ON_SERVER query)
     (tap> [:dbg ::subscribe-on-server query])
     (swap! SUBSCRIPTIONS_ON_SERVER conj query)
-    (rf/dispatch [:comm-async/send-message [::subscribe query]])))
+    (send-message-to-server [::subscribe query])))
 
 
-(rf/reg-event-db
- :sapp/subscription-changed
- (fn [db [_ query new-value]]
-   (tap> [:dbg ::server-subscription-changed query new-value])
-   (let [projector-id (-> query :projection/projector)
-         projection-id (-> query :projection/id)]
-     (system/merge-projection system
-                              projector-id projection-id
-                              new-value))
-   db))
+(defmethod on-server-message :sapp/subscription-changed
+  [_ {:keys [subscription new-value]}]
+  (let [projector-id (-> subscription :projection/projector)
+        projection-id (-> subscription :projection/id)]
+    (system/merge-projection system
+                             projector-id projection-id
+                             new-value)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -103,7 +165,8 @@
 
 
 (defn init! []
-  (rf/dispatch-sync [::init]))
+  (rf/dispatch-sync [::init])
+  (connect-to-server))
   ;; (eventbus/configure! {:dummy ::configuration})
   ;; (eventbus/dispatch!
   ;;  (eventbus/eventbus)
@@ -113,24 +176,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn new-localstorage-store []
-  (reify u/Storage
-    (u/store-value [storage storage-key value]
-      (-> js/window
-        .-localStorage
-        (.setItem (if (string? storage-key)
-                    storage-key
-                    (u/encode-edn storage-key))
-                  (u/encode-edn value))))
-    (u/load-value [storage storage-key]
-      (-> js/window
-          .-localStorage
-          (.getItem (if (string? storage-key)
-                      storage-key
-                      (u/encode-edn storage-key)))))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; ui components
 
@@ -400,18 +445,19 @@
 (defonce !anti-forgery-token (atom nil))
 
 (defn POST
-  [endpoint options]
+  [endpoint options])
   ;; FIXME re-request token if POST response contains "invalid anti-forgery token"
-  (if-let [anti-forgery-token @!anti-forgery-token]
-    (ajax/POST
-     endpoint
-     (-> options
-         (assoc-in [:headers "X-CSRF-Token"] anti-forgery-token)))
-    (ajax/GET
-     "/api/anti-forgery-token"
-     {:handler (fn [token]
-                 (reset! !anti-forgery-token token)
-                 (POST endpoint options))})))
+  ;; (if-let [anti-forgery-token @!anti-forgery-token]
+  ;;   (ajax/POST
+  ;;    endpoint
+  ;;    (-> options
+  ;;        (assoc-in [:headers "X-CSRF-Token"] anti-forgery-token)))
+  ;;   (ajax/GET
+  ;;    "/api/anti-forgery-token"
+  ;;    {:handler (fn [token]
+  ;;                (reset! !anti-forgery-token token)
+  ;;                (POST endpoint options))})))
+
 
 
 
@@ -475,9 +521,9 @@
           db @!init-fs))
 
 
-(defn transmit-messages-to-server!
-  [db messages]
-  db)
+;; (defn transmit-messages-to-server!
+;;   [db messages]
+;;   db)
   ;; (let [conversation-id (read db conversation-id)]
   ;;   (u/assert-spec ::conversation-id conversation-id ::transmit-messages-to-server!)
   ;;   (@!send-message-to-server db [::conversation-messages
@@ -496,111 +542,111 @@
   ;;   db))
 
 
-(defn transmit-message-to-server!
-  [db message]
-  (transmit-messages-to-server! db [message]))
+;; (defn transmit-message-to-server!
+;;   [db message]
+;;   (transmit-messages-to-server! db [message]))
 
 
-(defn poll-messages-from-server!
-  [db]
-  (let [conversation-id (read db conversation-id)]
-    (u/assert-spec ::conversation-id conversation-id ::poll-messages-from-server!)
-    (ajax/GET
-     "/api/messages"
-     {:params {:conversation conversation-id
-               :wait true}
-      :handler (fn [response]
-                 (rf/dispatch [::handle-poll-messages-from-server-response response]))
-      :error-handler (fn [response]
-                       (tap> [:wrn ::poll-messages-from-server!-failed response])
-                       (u/invoke-later! 1000 #(rf/dispatch [::restart-conversation])))})
-    db))
+;; (defn poll-messages-from-server!
+;;   [db]
+;;   (let [conversation-id (read db conversation-id)]
+;;     (u/assert-spec ::conversation-id conversation-id ::poll-messages-from-server!)
+;;     (ajax/GET
+;;      "/api/messages"
+;;      {:params {:conversation conversation-id
+;;                :wait true}
+;;       :handler (fn [response]
+;;                  (rf/dispatch [::handle-poll-messages-from-server-response response]))
+;;       :error-handler (fn [response]
+;;                        (tap> [:wrn ::poll-messages-from-server!-failed response])
+;;                        (u/invoke-later! 1000 #(rf/dispatch [::restart-conversation])))})
+;;     db))
 
 
-(defn- handle-query-response
-  [db {:keys [query response]}]
-  (if-let [lense (:lense (server-subscription-by-query db query))]
-    (reset db lense response)
-    (do
-      (tap> [:wrn ::no-lense-found-for-query query])
-      db)))
+;; (defn- handle-query-response
+;;   [db {:keys [query response]}]
+;;   (if-let [lense (:lense (server-subscription-by-query db query))]
+;;     (reset db lense response)
+;;     (do
+;;       (tap> [:wrn ::no-lense-found-for-query query])
+;;       db)))
 
-(defn- handle-message-from-server
-  [db message]
-  (tap> [:dbg ::message-from-server message])
-  (case (-> message :type)
-    :query-response (handle-query-response db message)
-    (do
-      (tap> [:wrn ::handle-message-from-server :unsupported-message message])
-      db)))
+;; (defn- handle-message-from-server
+;;   [db message]
+;;   (tap> [:dbg ::message-from-server message])
+;;   (case (-> message :type)
+;;     :query-response (handle-query-response db message)
+;;     (do
+;;       (tap> [:wrn ::handle-message-from-server :unsupported-message message])
+;;       db)))
 
-(rf/reg-event-db
- ::handle-poll-messages-from-server-response
- (fn [db [_ response]]
-   (let [messages (u/decode-edn response)
-         db (reduce handle-message-from-server db messages)]
-     (poll-messages-from-server! db)
-     db)))
-
-
-(defn transmit-subscriptions-to-server!
-  [db]
-  (let [queries (-> db
-                    (read server-subscriptions)
-                    vals
-                    (->> (remove (fn [sub] (not (-> sub :query))))
-                         (map :query))
-                    (into #{}))]
-    (transmit-message-to-server!
-     db
-     {:type :subscriptions
-      :subscriptions queries})))
+;; (rf/reg-event-db
+;;  ::handle-poll-messages-from-server-response
+;;  (fn [db [_ response]]
+;;    (let [messages (u/decode-edn response)
+;;          db (reduce handle-message-from-server db messages)]
+;;      (poll-messages-from-server! db)
+;;      db)))
 
 
-(defn update-server-subscriptions
-  [db new-subscriptions]
-  ;; FIXME optimize: check if changed
-  (let [subscriptions (read db server-subscriptions)
-        subscriptions (merge subscriptions new-subscriptions)
-        db (reset db server-subscriptions subscriptions)]
-    (transmit-subscriptions-to-server! db)
-    db))
-
-(rf/reg-event-db
- ::update-server-subscriptions
- (fn [db [_ new-subscriptions]]
-   (update-server-subscriptions db new-subscriptions)))
-
-(defn update-lense-subscription
-  [db lense]
-  (if-let [query-f (u/as-optional-fn (get lense :server-subscription-query))]
-    (update-server-subscriptions
-     db
-     {[:lense (-> lense :id)]
-      {:query (query-f db lense)
-       :lense lense}})
-    db))
+;; (defn transmit-subscriptions-to-server!
+;;   [db]
+;;   (let [queries (-> db
+;;                     (read server-subscriptions)
+;;                     vals
+;;                     (->> (remove (fn [sub] (not (-> sub :query))))
+;;                          (map :query))
+;;                     (into #{}))]
+;;     (transmit-message-to-server!
+;;      db
+;;      {:type :subscriptions
+;;       :subscriptions queries})))
 
 
-(defn start-conversation
-  [db]
-  (let [db (reset db conversation-id (u/random-uuid-string))]
-    (poll-messages-from-server! db)
-    (transmit-subscriptions-to-server! db)
-    db))
+;; (defn update-server-subscriptions
+;;   [db new-subscriptions]
+;;   ;; FIXME optimize: check if changed
+;;   (let [subscriptions (read db server-subscriptions)
+;;         subscriptions (merge subscriptions new-subscriptions)
+;;         db (reset db server-subscriptions subscriptions)]
+;;     (transmit-subscriptions-to-server! db)
+;;     db))
+
+;; (rf/reg-event-db
+;;  ::update-server-subscriptions
+;;  (fn [db [_ new-subscriptions]]
+;;    (update-server-subscriptions db new-subscriptions)))
+
+;; (defn update-lense-subscription
+;;   [db lense]
+;;   (if-let [query-f (u/as-optional-fn (get lense :server-subscription-query))]
+;;     (update-server-subscriptions
+;;      db
+;;      {[:lense (-> lense :id)]
+;;       {:query (query-f db lense)
+;;        :lense lense}})
+;;     db))
 
 
-(rf/reg-event-db
- ::restart-conversation
- (fn [db _]
-   (start-conversation db)))
+;; (defn start-conversation
+;;   [db]
+;;   (let [db (reset db conversation-id (u/random-uuid-string))]
+;;     (poll-messages-from-server! db)
+;;     (transmit-subscriptions-to-server! db)
+;;     db))
+
+
+;; (rf/reg-event-db
+;;  ::restart-conversation
+;;  (fn [db _]
+;;    (start-conversation db)))
 
 
 (rf/reg-event-db
  ::init
  (fn [db]
    (-> db
-       start-conversation
+       ;; start-conversation
        run-init-fs)))
 
 

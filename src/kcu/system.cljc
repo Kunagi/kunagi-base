@@ -30,15 +30,22 @@
    ;; TODO store errors in atom
 
 
-(defprotocol AggregateStorage
-  (load-aggregate-value [this aggregator-id aggregate-id])
-  (store-aggregate-effects [this aggregator-id aggregate-id effects])
-  (store-aggregate-value [this aggregator-id aggreagate-id value]))
+(u/do-once
+
+  (defprotocol AggregateStorage
+    (load-aggregate-value [this aggregator-id aggregate-id])
+    (store-aggregate-effects [this aggregator-id aggregate-id effects])
+    (store-aggregate-value [this aggregator-id aggreagate-id value]))
 
 
-(defprotocol Transactor
-  (new-bucket [this])
-  (transact [this bucket f]))
+  (defprotocol ProjectionStorage
+    (load-projection-value [this projector-id projection-id])
+    (store-projection-value [this projector-id projection-id value]))
+
+
+  (defprotocol Transactor
+    (new-bucket [this])
+    (transact [this bucket f])))
 
 
 (defn new-atom-transactor [atom]
@@ -247,8 +254,32 @@
 
 (defn merge-projection [system projector-id projection-id new-value]
   (u/assert-spec ::projector/projector-id projector-id)
-  (let [bucket (projection-bucket system projector-id projection-id)]
-    (reset! bucket new-value)))
+  (let [bucket (projection-bucket system projector-id projection-id)
+        storage (-> system :options :projection-storage)]
+    (reset! bucket new-value)
+    (when storage
+      (store-projection-value storage
+                              projector-id projection-id new-value))))
+
+
+(defn- projection-transaction-update-function
+  [system projector handler projection-id tx-id event projection]
+  (let [storage (-> system :options :projection-storage)
+        projector-id (-> projector :id)
+        projection (or projection
+                       (when storage
+                         (load-projection-value
+                          storage projector-id projection-id)))
+        projection (projector/apply-event projector
+                                          handler
+                                          projection-id
+                                          projection
+                                          event)
+        projection (assoc projection :aggregate/tx-id tx-id)]
+    (when storage
+      (store-projection-value storage
+                              projector-id projection-id projection))
+    projection))
 
 
 (defn- handle-projector-event [system projector event]
@@ -259,11 +290,8 @@
             transactor (-> system :transactor)
             bucket (projection-bucket system (-> projector :id) projection-id)]
         (transact transactor bucket
-                  (fn [projection]
-                    (assoc
-                     (projector/apply-event
-                      projector handler projection-id projection event)
-                     :aggregate/tx-id tx-id)))))))
+                  (partial projection-transaction-update-function
+                           system projector handler projection-id tx-id event))))))
 
 
 (defn- projectors-event-handler [system event]

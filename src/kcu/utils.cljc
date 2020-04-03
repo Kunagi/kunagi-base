@@ -7,6 +7,13 @@
    [#?(:cljs cljs.reader :clj clojure.edn) :refer [read-string]]))
 
 
+;; FIXME x must be uniqe!!!!
+(defmacro do-once [& body]
+  `(defonce x# (do ~@body)))
+
+#_(macroexpand-1 '(do-once :a :b))
+
+
 (defn random-uuid []
   #?(:cljs (cljs.core/random-uuid)
      :clj  (java.util.UUID/randomUUID)))

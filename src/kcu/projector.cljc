@@ -46,6 +46,9 @@
 (defn new-projection
   [projector entity-id]
   (assert-projector projector)
+  (u/assert-spec (s/or :nil nil?
+                       :str string?)
+                 entity-id)
   (let [projector-id (-> projector :id)
         projection-id (if entity-id
                         entity-id
@@ -115,6 +118,9 @@
 
 
 (defn apply-event [projector handler projection-id projection event]
+  (u/assert-spec (s/or :nil nil?
+                       :str string?)
+                 projection-id)
   (let [event-name (-> event :event/name)
         projector-id (-> projector :id)
         f (get handler :f)
