@@ -144,6 +144,19 @@
       (files/read-edn (aggregate-value-file aggregator-id aggregate-id)))))
 
 
+(defonce system (system/new-system
+                 :sapp
+                 {:aggregate-storage (aggregate-storage)}))
+
+
+(defn dispatch [command]
+  (system/dispatch-command system command))
+
+
+(defn dispatch-from-bapp [command context]
+  (system/dispatch-command system command))
+
+
 (comment
   (do
 

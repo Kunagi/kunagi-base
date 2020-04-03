@@ -36,10 +36,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 (def !send-message-to-server
   (atom (fn [_db _message]
           (tap> [:!!! ::send-message-to-server :not-implemented]))))
 
+
+(defn dispatch-on-server [command]
+  (rf/dispatch [:comm-async/send-message [::dispatch command]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
