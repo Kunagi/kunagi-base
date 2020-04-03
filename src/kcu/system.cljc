@@ -234,6 +234,23 @@
        (map #(projection system (first %) (second %)))))
 
 
+(defn subscribe-to-projection [system projector-id projection-id on-change-f]
+  (u/assert-spec ::projector/projector-id projector-id)
+  (let [bucket (projection-bucket system projector-id projection-id)
+        watch-id (u/random-uuid)]
+    (add-watch bucket watch-id
+               (fn [_ _ old-value new-value]
+                 (when (not= old-value new-value)
+                   (on-change-f new-value (fn unsubscribe []
+                                            (remove-watch bucket watch-id))))))))
+
+
+(defn merge-projection [system projector-id projection-id new-value]
+  (u/assert-spec ::projector/projector-id projector-id)
+  (let [bucket (projection-bucket system projector-id projection-id)]
+    (reset! bucket new-value)))
+
+
 (defn- handle-projector-event [system projector event]
   (let [event (assoc event :event/name (-> event :event/name name keyword))
         tx-id (-> event :aggregate/tx-id)]

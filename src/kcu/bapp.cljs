@@ -46,6 +46,11 @@
   (rf/dispatch [:comm-async/send-message [::dispatch command]]))
 
 
+(defonce SUBSCRIPTIONS_ON_SERVER (atom #{}))
+
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -63,6 +68,25 @@
 
 (defn dispatch [command]
   (system/dispatch-command system command))
+
+
+(defn subscribe-on-server [query]
+  (when-not (contains? @SUBSCRIPTIONS_ON_SERVER query)
+    (tap> [:dbg ::subscribe-on-server query])
+    (swap! SUBSCRIPTIONS_ON_SERVER conj query)
+    (rf/dispatch [:comm-async/send-message [::subscribe query]])))
+
+
+(rf/reg-event-db
+ :sapp/subscription-changed
+ (fn [db [_ query new-value]]
+   (tap> [:dbg ::server-subscription-changed query new-value])
+   (let [projector-id (-> query :projection/projector)
+         projection-id (-> query :projection/id)]
+     (system/merge-projection system
+                              projector-id projection-id
+                              new-value))
+   db))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -453,24 +477,23 @@
 
 (defn transmit-messages-to-server!
   [db messages]
-  (let [conversation-id (read db conversation-id)]
-    (u/assert-spec ::conversation-id conversation-id ::transmit-messages-to-server!)
-    (@!send-message-to-server db [::conversation-messages
-                                  {:conversation-id conversation-id
-                                   :messages messages}])
-    (POST
-     "/api/post-messages"
-     {
-      :format :text
-      :params {:conversation conversation-id
-               :messages messages}
-      ;; :body (u/encode-edn {:conversation (read db conversation-id)
-      ;;                      :messages messages})
-      :handler (fn [response]
-                 (tap> [:dbg ::messages-delivered-to-server
-                        {:response response
-                         :messages messages}]))})
-    db))
+  db)
+  ;; (let [conversation-id (read db conversation-id)]
+  ;;   (u/assert-spec ::conversation-id conversation-id ::transmit-messages-to-server!)
+  ;;   (@!send-message-to-server db [::conversation-messages
+  ;;                                 {:conversation-id conversation-id
+  ;;                                  :messages messages}])
+  ;;   (POST
+  ;;    "/api/post-messages"
+  ;;    {
+  ;;     :format :text
+  ;;     :params {:conversation conversation-id
+  ;;              :messages messages}
+  ;;     :handler (fn [response]
+  ;;                (tap> [:dbg ::messages-delivered-to-server
+  ;;                       {:response response
+  ;;                        :messages messages}]))})
+  ;;   db))
 
 
 (defn transmit-message-to-server!

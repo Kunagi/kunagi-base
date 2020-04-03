@@ -154,7 +154,17 @@
 
 
 (defn dispatch-from-bapp [command context]
+  ;; FIXME check permission
   (system/dispatch-command system command))
+
+
+(defn subscribe [query on-change-f context]
+  ;; FIXME check permission
+  (let [projector-id (-> query :projection/projector)
+        projection-id (-> query :projection/id)]
+    (system/subscribe-to-projection system
+                                    projector-id projection-id
+                                    on-change-f)))
 
 
 (comment

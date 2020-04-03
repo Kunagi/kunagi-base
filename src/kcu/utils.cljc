@@ -1,10 +1,15 @@
 (ns kcu.utils
   #?(:cljs (:require-macros [kcu.utils]))
-  (:refer-clojure :exclude [read-string])
+  (:refer-clojure :exclude [read-string random-uuid])
   (:require
    [clojure.pprint :refer [pprint]]
    [clojure.spec.alpha :as s]
    [#?(:cljs cljs.reader :clj clojure.edn) :refer [read-string]]))
+
+
+(defn random-uuid []
+  #?(:cljs (cljs.core/random-uuid)
+     :clj  (java.util.UUID/randomUUID)))
 
 
 (defn random-uuid-string []
