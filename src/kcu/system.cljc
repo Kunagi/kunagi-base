@@ -44,13 +44,13 @@
 
 
   (defprotocol Transactor
-    (new-bucket [this])
+    (new-bucket [this constructor])
     (transact [this bucket f])))
 
 
 (defn new-atom-transactor [atom]
   (reify Transactor
-    (new-bucket [_this] (atom nil))
+    (new-bucket [_this constructor] (atom (constructor)))
     (transact [_this bucket f]
       (swap! bucket f)
       bucket)))
@@ -59,26 +59,27 @@
 #?(:clj
    (defn new-agent-transactor [system]
      (reify Transactor
-       (new-bucket [_this] (agent nil
-                                  :error-mode :continue
-                                  :error-handler
-                                  (fn [agent ex]
-                                    (log-error system
-                                               :transactor-failed
-                                               {:agent agent}
-                                               ex))))
+       (new-bucket [_this constructor]
+         (agent (constructor)
+                :error-mode :continue
+                :error-handler
+                (fn [agent ex]
+                  (log-error system
+                             :transactor-failed
+                             {:agent agent}
+                             ex))))
        (transact [_this bucket f]
          (send-off bucket f)
          bucket))))
 
 
-(defn- transaction-bucket [system bucket-type entity-type entity-id watch-f]
+(defn- transaction-bucket [system bucket-type entity-type entity-id constructor watch-f]
   (let [!buckets (get-in system [:buckets bucket-type])]
     (locking !buckets
       (if-let [bucket (get @!buckets [entity-type entity-id])]
         bucket
         (let [transactor (-> system :transactor)
-              bucket (new-bucket transactor)]
+              bucket (new-bucket transactor constructor)]
           (when watch-f (add-watch bucket ::watch watch-f))
           (swap! !buckets assoc [entity-type entity-id] bucket)
           bucket)))))
@@ -112,7 +113,15 @@
 ;;; aggregators and commands
 
 (defn aggregate-bucket [system aggregator-id aggregate-id]
-  (transaction-bucket system :aggregate aggregator-id aggregate-id nil))
+  (transaction-bucket system :aggregate
+                      aggregator-id aggregate-id
+                      (fn aggregate-constructor []
+                        (or (when-let [storage (-> system :options :aggregate-storage)]
+                              (load-aggregate-value storage
+                                                    aggregator-id aggregate-id))
+                            (aggregator/new-aggregate
+                             (aggregator/aggregator aggregator-id))))
+                      nil))
 
 
 (defn aggregate [system aggregator-id aggregate-id]
@@ -225,6 +234,13 @@
 (defn projection-bucket [system projector-id projection-id]
   (transaction-bucket system :projection
                       projector-id projection-id
+                      (fn projection-constructor []
+                        (or (when-let [storage (-> system :options :projection-storage)]
+                              (load-projection-value storage
+                                                     projector-id projection-id))
+                            (projector/new-projection
+                             (projector/projector projector-id)
+                             projection-id)))
                       (partial on-projection-updated system)))
 
 
