@@ -21,6 +21,8 @@
 (def color-projection "#e1bee7")
 (def color-projection-step "#f5f5f5")
 (def color-context "#c8e6c9")
+(def color-result "#81c784")
+(def color-rejection "#e57373")
 (def color-ui color-unknown)
 
 
@@ -130,7 +132,10 @@
          :else
          ^{:key effect}
          [muic/Card
-          {:style {:background-color color-unknown}}
+          {:style {:background-color (case (-> effect :effect/type)
+                                       :result color-result
+                                       :rejection color-rejection
+                                       color-unknown)}}
           [muic/Data effect]]))]))
 
 
@@ -274,10 +279,10 @@
   (let [commands (-> flow :commands)
         system (system/new-system :simulator {})
 
-        _ (system/dispatch-command system
-                                   {:command/name :wartsapp/ziehe-nummer
-                                    :patient/id "patient-X"}
-                                   #(js/alert %))
+        ;; _ (system/dispatch-command system
+        ;;                            {:command/name :wartsapp/ziehe-nummer
+        ;;                             :patient/id "patient-X"}
+        ;;                            #(js/alert %))
 
         _ (system/dispatch-commands system commands)
 

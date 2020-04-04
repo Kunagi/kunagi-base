@@ -175,21 +175,30 @@
     (dispatch-event system event)))
 
 
+(defn- complete-effect [effect]
+  (cond
+
+    (contains? effect :effect/type)
+    effect
+
+    (contains? effect :event/name)
+    (assoc effect :effect/type :event)
+
+    (contains? effect :rejection/text)
+    (assoc effect :effect/type :rejection)
+
+    (contains? effect :result/text)
+    (assoc effect :effect/type :rejection)
+
+    :else
+    (throw (ex-info (str "Missing `:effect/type` in effect.")
+                    {:effect effect}))))
+
+
 (defn- reify-aggregate-effects [system aggregator tx]
-  (let [effects-groups (group-by (fn [effect]
-                                   (cond
-
-                                     (contains? effect :event/name)
-                                     :event
-
-                                     (contains? effect :effect/type)
-                                     (-> effect :effect/type)
-
-                                     :else
-                                     (throw (ex-info (str "Missing `:effect/type` in effect.")
-                                                     {:tx tx
-                                                      :effect effect}))))
-                                 (-> tx :effects))
+  (let [effects (map complete-effect (-> tx :effects))
+        _ (update-transaction system (-> tx :tx-id) #(assoc % :effects effects))
+        effects-groups (group-by :effect/type effects)
         events (-> effects-groups :event)
         effects-groups (dissoc effects-groups :event)
         result (-> effects-groups :result first) ;; TODO exception if more
