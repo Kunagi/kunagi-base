@@ -36,17 +36,6 @@
         uuid))))
 
 
-;;; service worker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(defn- install-serviceworker! []
-  (when (-> (config/appinfo) :browserapp :serviceworker)
-    ;; serviceworker is supported for this app
-    (when (get (config/config) :service-worker? true)
-      ;; serviceworder is not disabled for this installation
-      (if (-> js/navigator .-serviceWorker)
-        (js/navigator.serviceWorker.register "/serviceworker.js")
-        (tap> [:wrn ::serviceWorker-not-supported-by-browser])))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -183,24 +172,6 @@
                              new-value)))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; init-fns
-
-
-(defonce !init-fs (atom {}))
-
-
-(defn start []
-  (install-serviceworker!)
-  (rf/dispatch-sync [::init])
-  (connect-to-server))
-  ;; (eventbus/configure! {:dummy ::configuration})
-  ;; (eventbus/dispatch!
-  ;;  (eventbus/eventbus)
-  ;;  {:event/name :bapp/initialized}
-  ;;  {:dummy ::context}))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -229,4 +200,28 @@
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; startup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn- install-serviceworker []
+  (when (-> (config/appinfo) :browserapp :serviceworker)
+    ;; serviceworker is supported for this app
+    (when (get (config/config) :service-worker? true)
+      ;; serviceworder is not disabled for this installation
+      (if-not (-> js/navigator .-serviceWorker)
+        (tap> [:wrn ::serviceworker-not-supported-by-browser])
+        (try
+          (js/navigator.serviceWorker.register "/serviceworker.js")
+          (catch :default ex
+            (tap> [:err ::serviceworker-installation-failed ex])))))))
+
+
+(defn start []
+  (install-serviceworker)
+  (rf/dispatch-sync [::init])
+  (connect-to-server))
+;; (eventbus/configure! {:dummy ::configuration})
+;; (eventbus/dispatch!
+;;  (eventbus/eventbus)
+;;  {:event/name :bapp/initialized}
+;;  {:dummy ::context}))
