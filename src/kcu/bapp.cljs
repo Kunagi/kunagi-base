@@ -12,6 +12,7 @@
 
    [kcu.utils :as u]
    [kcu.butils :as bu]
+   [kcu.config :as config]
    [kcu.registry :as registry]
    [kcu.eventbus :as eventbus]
    [kcu.projector :as projector]
@@ -36,6 +37,19 @@
       (let [uuid (u/random-uuid-string)]
         (-> js/window .-localStorage (.setItem storage-key uuid))
         uuid))))
+
+
+;;; service worker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn- install-serviceworker! []
+  (when (-> (config/appinfo) :browserapp :serviceworker)
+    ;; serviceworker is supported for this app
+    (when (get (config/config) :service-worker? true)
+      ;; serviceworder is not disabled for this installation
+      (if (-> js/navigator .-serviceWorker)
+        (js/navigator.serviceWorker.register "/serviceworker.js")
+        (tap> [:wrn ::serviceWorker-not-supported-by-browser])))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -185,7 +199,8 @@
   (swap! !init-fs assoc id f))
 
 
-(defn init! []
+(defn start []
+  (install-serviceworker!)
   (rf/dispatch-sync [::init])
   (connect-to-server))
   ;; (eventbus/configure! {:dummy ::configuration})

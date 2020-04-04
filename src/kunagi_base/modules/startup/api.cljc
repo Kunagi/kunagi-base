@@ -40,52 +40,16 @@
       (exec-init-functions)))
 
 
-(defn- log-environment-info! []
-  #?(:clj
-     (tap> [:inf ::environment-info
-            {:working-directory (System/getProperty "user.dir")
-             :user-name (System/getProperty "user.name")
-             :user-home (System/getProperty "user.home")
-             :java-version (System/getProperty "java.version")
-             :locale (-> (java.util.Locale/getDefault) .toString)}])))
-
-
-(defn- complete-appinfo [appinfo]
-  (assoc
-   appinfo
-   :app-name (or (-> appinfo :app-name)
-                 (-> appinfo :project :id)
-                 "noname")
-   :app-version (or (-> appinfo :app-version)
-                    (str (or (-> appinfo :release :major) 0)
-                         "."
-                         (or (-> appinfo :release :minor) 0)))
-   :app-label (or (-> appinfo :app-label)
-                  (-> appinfo :project :name)
-                  "Noname App")))
-
-
-(defn start! [initial-data]
-  (log-environment-info!)
-  (let [initial-data (update initial-data :app/info complete-appinfo)
-        db (-> {}
-               (utils/deep-merge initial-data)
-               (assoc :appconfig/config (config/config))
-               (assoc :appconfig/secrets-f config/secrets))]
-    #?(:clj  (context/update-app-db #(-init-app-db % db))
-       :cljs (rf/dispatch-sync [::init db]))))
-
-
-#?(:cljs
-   (defn install-serviceworker! []
-     (let [config (config/config)
-           install? (if (contains? config :service-worker?)
-                      (get config :service-worker?)
-                      true)]
-       (when install?
-         (if (-> js/navigator .-serviceWorker)
-           (js/navigator.serviceWorker.register "/serviceworker.js")
-           (tap> [:wrn ::serviceWorker-not-supported-by-browser]))))))
+(defn start!
+  ([]
+   (start! {}))
+  ([initial-data]
+   (let [db (-> {}
+                (utils/deep-merge initial-data)
+                (assoc :appconfig/config (config/config))
+                (assoc :appconfig/secrets-f config/secrets))]
+     #?(:clj  (context/update-app-db #(-init-app-db % db))
+        :cljs (rf/dispatch-sync [::init db])))))
 
 
 ;;; re-frame

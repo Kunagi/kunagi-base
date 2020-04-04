@@ -1,21 +1,22 @@
 (ns kunagi-base-server.modules.browserapp.api
   (:require
    [html-tools.htmlgen :as htmlgen]
+   [kcu.config :as config]
 
    [kunagi-base-server.modules.auth-server.auth :as auth]))
 
 
 (defn- browserapp-config [req context]
   (-> {}
-      (merge (-> context :db :appconfig/config :browserapp/config))
+      (merge (-> (config/config) :browserapp/config))
       (assoc :auth/user (auth/user--for-browserapp context))
-      (assoc :serverapp/info (-> context :db :app/info))))
+      (assoc :serverapp/info (config/appinfo))))
 
 
 (defn serve-app [context]
   (let [v (-> context :http/request :params (get "v"))
-        app-info (-> context :db :app/info)
-        config (-> context :db :appconfig/config)
+        app-info (config/appinfo)
+        config (config/config)
         lang (or (-> config :browserapp/lang) "en")
         ;; google-analytics-tracking-id (-> config :google-analytics/tracking-id)
         cookie-consent-script-url (-> config :browserapp/cookie-consent-script-url)
@@ -55,7 +56,7 @@
       :lang lang
       :head-contents head-contents
       :browserapp-config-f #(browserapp-config % context)
-      :js-build-name (-> context :db :appconfig/config :browserapp/js-build-name)
+      :js-build-name (-> config :browserapp/js-build-name)
       :js-build-v v
       :browserapp-name (-> app-info :app-name)
       :title (-> app-info :app-label)})))

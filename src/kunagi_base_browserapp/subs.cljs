@@ -1,6 +1,7 @@
 (ns kunagi-base-browserapp.subs
   (:require
-   [re-frame.core :as rf]))
+   [re-frame.core :as rf]
+   [kcu.config :as config]))
 
 
 (rf/reg-sub
@@ -12,12 +13,10 @@
 (rf/reg-sub
  :app/info
  (fn [db _]
-   (get db :app/info)))
+   (config/appinfo)))
 
 
 (rf/reg-sub
  :appconfig/config
  (fn [db _]
-   (get db :appconfig/config)))
-
-
+   (config/config)))
