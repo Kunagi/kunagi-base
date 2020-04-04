@@ -44,6 +44,7 @@
 
 
 (defn TextFieldDialog [options]
+  ;; FIXME focus after unblock
   (let [initial-state {:open? false
                        :value ""}
         STATE (r/atom (-> initial-state
@@ -59,7 +60,13 @@
                                                 (-> options :title)]
                                                STATE))
             on-submit (-> options :on-submit)
-            submit #(when (on-submit STATE)
+            submit #(when (on-submit
+                           STATE
+                           {:close reset
+                            :block (fn [] (swap! STATE assoc :blocked? true))
+                            :unblock (fn [options]
+                                       (swap! STATE merge
+                                              options {:blocked? false}))})
                       (reset))]
         [:div
          (when trigger
