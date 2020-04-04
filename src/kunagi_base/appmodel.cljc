@@ -2,7 +2,6 @@
   (:require
    [clojure.spec.alpha :as s]
 
-   [kunagi-base.logging.tap]
    [kunagi-base.utils :as utils]
    [kunagi-base.dsdb.api :as dsdb]
    [kunagi-base.context :as context]))

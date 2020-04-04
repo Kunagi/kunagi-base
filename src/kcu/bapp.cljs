@@ -8,6 +8,8 @@
    [ajax.core :as ajax]
    [taoensso.sente  :as sente]
 
+   [kcu.tap]
+
    [kcu.utils :as u]
    [kcu.butils :as bu]
    [kcu.registry :as registry]

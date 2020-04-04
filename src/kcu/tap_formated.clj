@@ -1,10 +1,10 @@
-(ns kunagi-base.logging.tap-formated
+(ns kcu.tap-formated
   (:require
    [clojure.term.colors :as c]
    [puget.printer :as puget]
    [io.aviso.exception :as aviso]
 
-   [kunagi-base.logging.tap :as logging]))
+   [kcu.tap :as kcu-tap]))
 
 
 (defonce lock :lock)
@@ -35,4 +35,4 @@
       (println))))
 
 
-(reset! logging/!printer log-record)
+(reset! kcu-tap/!printer log-record)

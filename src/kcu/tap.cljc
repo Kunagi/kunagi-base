@@ -1,4 +1,4 @@
-(ns kunagi-base.logging.tap)
+(ns kcu.tap)
 
 
 #?(:cljs (enable-console-print!))

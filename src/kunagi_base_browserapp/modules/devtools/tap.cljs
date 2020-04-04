@@ -1,7 +1,7 @@
 (ns kunagi-base-browserapp.modules.devtools.tap
   (:require
    [reagent.core :as r]
-   [kunagi-base.logging.tap :as logging-tap]
+   [kcu.tap :as logging-tap]
    [mui-commons.components :as muic]))
 
 
