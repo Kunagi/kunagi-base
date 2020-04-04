@@ -5,15 +5,28 @@
    [ring.util.request :as ring-request]
    [io.aviso.exception :as aviso-exception]
 
+
    [kcu.utils :as u]
+   [kcu.config :as config]
    [kcu.query :as query]
    [kcu.txa :as txa]
    [kcu.system :as system]
-   [kcu.sapp-conversation :as conversation]
+   [kcu.sapp-conversation :as conversation] ;;FIXME deprecated
    [kcu.files :as files]))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (def data-dir "app-data")
+
+
+(def config config/config)
+(def secrets config/secrets)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; http
 
 
 (defn http-response-missing-param
@@ -211,7 +224,13 @@
 
 
 (defn reg-event-handler
-  [id event-name options f])
+  [id event-name options f]
+  (system/reg-event-handler
+   system
+   {:id id
+    :event event-name
+    :options options
+    :f f}))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -245,7 +264,8 @@
 (defn- init []
   (log-environment-info)
   (system/dispatch-event system
-                         {:event/name :sapp/initialized}))
+                         {:event/name :sapp/ready-for-services})
+  (Thread/sleep 3000)) ;; FIXME
 
 
 (defn start [& args]

@@ -4,7 +4,6 @@
   (:require
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
-   [bindscript.api :refer [def-bindscript]]
    [kcu.utils :as kcu]))
 
 
@@ -114,19 +113,6 @@
    entity))
 
 
-(def-bindscript
-  ::assert-entity
-  rick {:name "Rick"
-        :age 68}
-  _ (assert-entity rick
-                   {:req {:name string?
-                          :age int?}
-                    :opt {:language string?}})
-  _ (assert-entity rick
-                   {:req {:size number?}})
-  _ (assert-entity rick
-                   {:req {:name int?}}
-                   "Invalid person."))
 
 
 

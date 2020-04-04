@@ -2,6 +2,7 @@
   (:require
    [ring.middleware.oauth2 :as ring-oauth]
 
+   [kcu.config :as config]
    [kunagi-base.auth.api :as auth]
    [kunagi-base.modules.events.api :as events]))
 
@@ -98,10 +99,10 @@
          :headers {"Location" "/"}}))))
 
 
-(defn oauth2-wrapper [app-db]
+(defn oauth2-wrapper []
   (fn [routes]
-    (let [config (-> app-db :appconfig/config)
-          secrets (-> app-db :appconfig/secrets-f (apply []) :oauth)]
+    (let [config (config/config)
+          secrets (-> (config/secrets) :oauth)]
       (ring-oauth/wrap-oauth2 routes (create-ring-oauth2-config config secrets)))))
 
 

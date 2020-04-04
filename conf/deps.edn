@@ -1,4 +1,4 @@
-{:own [witek/bindscript]
+{:own []
 
  :foreign {
            ;; cljc

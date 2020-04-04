@@ -142,7 +142,7 @@
               " in entity definition "
               (pr-str (entity-id entity))
               ".")))
-      (tap> [:wrn ::missing-attr-in-entity-model {:missing-atr k
+      (tap> [:dbg ::missing-attr-in-entity-model {:missing-atr k
                                                   :attr-model attr-model
                                                   :provided-by-entity entity}]))))
 

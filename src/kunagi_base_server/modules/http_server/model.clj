@@ -7,7 +7,6 @@
    [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am :refer [def-module def-entity-model]]
 
-   [kunagi-base.modules.startup.model :refer [def-init-function]]
    [kunagi-base-server.modules.http-server.api :as impl]))
 
 
@@ -59,13 +58,13 @@
 ;;;
 
 
-;; (sapp/def-event-handler :start)
-
-
-(def-init-function
-  {:init-function/id ::start
-   :init-function/module [:module/ident :http-server]
-   :init-function/f impl/start!})
+(sapp/reg-event-handler
+ ::start
+ :sapp/ready-for-services
+ {}
+ (fn [_event]
+   (tap> [:!!! ::start])
+   (impl/start!)))
 
 
 (def-route

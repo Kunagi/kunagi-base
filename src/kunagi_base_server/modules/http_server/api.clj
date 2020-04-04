@@ -181,14 +181,14 @@
      routes)))
 
 
-(defn- wrappers-from-appmodel [app-db]
+(defn- wrappers-from-appmodel []
   (let [wrappers (am/q!
                   '[:find ?wrapper-f
                     :where
                     [?r :routes-wrapper/wrapper-f ?wrapper-f]])]
     (map
      (fn [[wrapper-f]]
-       (wrapper-f app-db))
+       (wrapper-f))
      wrappers)))
 
 
@@ -363,12 +363,12 @@
    wrappers))
 
 
-(defn- wrap-routes [routes wrappers app-db]
-  (let [config (-> app-db :appconfig/config)
+(defn- wrap-routes [routes wrappers]
+  (let [config (sapp/config)
         http-session? (if (contains? config :http-server/http-session?)
                         (-> config :http-server/http-session?)
                         true)
-        reload? (-> app-db :appconfig/config :http-server/reload?)
+        reload? (-> config :http-server/reload?)
         reload-dirs (into ["src"]
                           (-> config :http-server/reload-dirs))]
     (cond->
@@ -408,19 +408,16 @@
 
 
 (defn start!
-  [app-db]
-  (let [port (or (-> app-db :appconfig/config :http-server/port)
+  []
+  (let [port (or (-> (sapp/config) :http-server/port)
                  3000)
         routes (-> []
                    (into (routes-from-appmodel))
                    (into (create-default-routes)))
         wrappers (-> []
-                     (into (wrappers-from-appmodel app-db)))]
+                     (into (wrappers-from-appmodel)))]
     ;;(tap> [:dbg ::routes routes])
     (tap> [:inf ::start! {:port port}])
     (http-kit/run-server
-     (wrap-routes routes wrappers app-db)
-     {:port port})
-    app-db))
-
-
+     (wrap-routes routes wrappers)
+     {:port port})))

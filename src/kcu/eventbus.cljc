@@ -20,10 +20,10 @@
 (defn handlers-for-event
   [eventbus event-name]
   (concat
-   (->> eventbus :handlers-by-event :event-handler/catch-all)
-   (->> eventbus
-        :handlers-by-event
-        (get event-name))))
+   (-> eventbus :handlers-by-event :event-handler/catch-all)
+   (-> eventbus
+       :handlers-by-event
+       (get event-name))))
 
 
 (defn add-handler

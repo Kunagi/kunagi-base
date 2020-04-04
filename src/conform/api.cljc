@@ -1,7 +1,6 @@
 (ns conform.api
   (:require
-   [clojure.spec.alpha :as s]
-   [bindscript.api :refer [def-bindscript]]))
+   [clojure.spec.alpha :as s]))
 
 
 (defn- validate-val
@@ -32,5 +31,3 @@
       (validate-val val spec function-identifier-key))))
 
 
-(def-bindscript ::validate-value)
-  ;;value (validate-val 1 string? ::validate-value))

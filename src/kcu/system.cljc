@@ -118,7 +118,7 @@
   (dispatch-events system [event]))
 
 
-(defn add-event-handler
+(defn reg-event-handler
   [system handler]
   (swap! (-> system :eventbus) eventbus/add-handler handler)
   system)
@@ -437,7 +437,7 @@
                  :f (partial projectors-event-handler system)
                  :options {}}]
     (-> system
-        (add-event-handler handler))))
+        (reg-event-handler handler))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
