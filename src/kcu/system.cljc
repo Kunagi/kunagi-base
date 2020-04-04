@@ -370,10 +370,14 @@
                                             (remove-watch bucket watch-id))))))))
 
 
-(defn merge-projection [system projector-id projection-id new-value]
+(defn merge-projection [system projector-id projection-id other-value]
   (u/assert-spec ::projector/projector-id projector-id)
   (let [bucket (projection-bucket system projector-id projection-id)
-        storage (-> system :options :projection-storage)]
+        storage (-> system :options :projection-storage)
+        projector (projector/projector projector-id)
+        merge-f (or (-> projector :options :merge-f)
+                    (constantly other-value))
+        new-value (merge-f other-value)]
     (reset! bucket new-value)
     (when storage
       (store-projection-value storage
