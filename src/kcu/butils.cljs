@@ -31,3 +31,61 @@
                  (when (not= old-val new-val)
                    (set-to-local-storage k new-val))))
     ratom))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; notifications
+
+
+(defn notifications-info []
+  (if-not (exists? js/Notification)
+    :not-supported
+    {:permission (-> js/Notification .-permission)}))
+
+
+(defn notifications-supported? []
+  (exists? js/Notification))
+
+
+(defn notifications-permission-granted? []
+  (and (notifications-supported?)
+       (= "granted" (-> js/Notification .-permission))))
+
+
+(defn request-notifications-permission [callback]
+  (tap> [:inf ::request-notifications-permission])
+  (if-not (notifications-supported?)
+    (tap> [:wrn ::request-notifications-permission :notifications-not-supported])
+    (-> js/Notification
+        .requestPermission
+        (.then callback))))
+
+
+(defn- show-notification-via-service-worker [title options]
+  (try
+    (-> js/navigator
+        .-serviceWorker
+        .getRegistration
+        (.then (fn [registration]
+                 (when registration
+                   (-> registration (.showNotification title (clj->js options)))))))
+    (catch :default ex
+      (tap> [:err ::show-notification ex]))))
+
+
+(defn show-notification [title options]
+  (if-not (notifications-supported?)
+    (tap> [:wrn ::show-notification :notifications-not-supported])
+    (try
+      (js/Notification. title (clj->js options))
+      (catch :default ex
+        (tap> [:dbg ::show-notification ex])
+        (show-notification-via-service-worker title options)))))
+
+
+(defn show-notification-once [identifier title options]
+  (let [localstorage-key [:notification-once identifier]]
+    (when-not (get-from-local-storage localstorage-key)
+      (show-notification title options)
+      (set-to-local-storage localstorage-key (u/current-time-millis)))))
