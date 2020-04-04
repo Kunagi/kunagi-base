@@ -108,7 +108,7 @@
 (defn dispatch-events [system events]
   (store-events system events)
   (doseq [event events]
-    (eventbus/dispatch! (-> system :eventbus)
+    (eventbus/dispatch! (-> system :eventbus deref)
                         event
                         {:system system}))
   system)
@@ -116,6 +116,12 @@
 
 (defn dispatch-event [system event]
   (dispatch-events system [event]))
+
+
+(defn add-event-handler
+  [system handler]
+  (swap! (-> system :eventbus) eventbus/add-handler handler)
+  system)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -431,7 +437,7 @@
                  :f (partial projectors-event-handler system)
                  :options {}}]
     (-> system
-        (update :eventbus eventbus/add-handler handler))))
+        (add-event-handler handler))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -448,7 +454,7 @@
 (defn- init-eventbus [system]
   (let [eventbus (eventbus/new-eventbus)]
     (-> system
-        (assoc :eventbus eventbus))))
+        (assoc :eventbus (atom eventbus)))))
 
 
 (defn new-system

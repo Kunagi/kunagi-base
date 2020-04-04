@@ -2,10 +2,9 @@
   (:require
    [clojure.spec.alpha :as s]
 
-   [facts-db.api :as db]
    [kunagi-base.utils :as utils]
    [kunagi-base.auth.api :as auth]
-   [kunagi-base.appmodel :as am :refer [def-module]]
+   [kunagi-base.appmodel :as am]
    [kunagi-base-server.modules.assets.loader :as loader]))
 
 

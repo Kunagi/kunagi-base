@@ -27,5 +27,5 @@
   {:route/id ::app
    :route/module [:module/ident :browserapp]
    :route/path "/ui/**"
-   :route/serve-f impl/serve-app
+   :route/serve-f #(impl/serve-app %)
    :route/req-perms []})

@@ -207,6 +207,17 @@
     (-> system :transactions deref first :tx-num)))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn reg-event-handler
+  [id event-name options f])
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; initialization and startup
+
 (defn- log-environment-info []
   (tap> [:inf ::environment-info
          {:working-directory (System/getProperty "user.dir")
@@ -235,6 +246,7 @@
   (log-environment-info)
   (system/dispatch-event system
                          {:event/name :sapp/initialized}))
+
 
 (defn start [& args]
   (try

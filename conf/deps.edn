@@ -5,12 +5,16 @@
            org.clojure/clojure       {:mvn/version "1.10.0"}
            mvxcvi/puget              {:mvn/version "1.1.0"}
            datascript                {:mvn/version "0.18.5"}
-           com.taoensso/sente        {:mvn/version "1.15.0"}
+
+           com.taoensso/sente        {:mvn/version "1.13.1"}
+           ;; CSRF breaking changes!!! com.taoensso/sente        {:mvn/version "1.15.0"}
+
            tongue                    {:mvn/version "0.2.9"}
 
            ;; clj
            clojure-term-colors       {:mvn/version "0.1.0"}
            io.aviso/pretty           {:mvn/version "0.1.37"}
+
            ring                      {:mvn/version "1.8.0"}
            ring/ring-defaults        {:mvn/version "0.3.2"}
            compojure                 {:mvn/version "1.6.1"}
@@ -20,6 +24,7 @@
 
            ;; cljs
            org.clojure/clojurescript {:mvn/version "1.10.520"}
+           re-frame                  {:mvn/version "0.12.0"}
            venantius/accountant      {:mvn/version "0.2.5"}
            com.cemerick/url          {:mvn/version "0.1.1"}
 

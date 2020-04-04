@@ -1,12 +1,8 @@
 (ns kunagi-base-server.modules.auth-server.auth
   (:require
-   [compojure.core :as compojure]
 
-   [facts-db.api :as db]
 
-   [kunagi-base.modules.event-sourcing.api :as es]
-   [kunagi-base.appmodel :refer [def-module]]
-   [kunagi-base-server.modules.http-server.model :refer [def-route]]))
+   [kunagi-base.modules.event-sourcing.api :as es]))
 
 
 (defn complete-user-for-browserapp-by-oauth-userinfos [user context]

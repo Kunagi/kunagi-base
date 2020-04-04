@@ -14,6 +14,14 @@
 #_(macroexpand-1 '(do-once :a :b))
 
 
+(defn deep-merge [& maps]
+  (apply merge-with (fn [& args]
+                      (if (every? map? args)
+                        (apply deep-merge args)
+                        (last args)))
+         maps))
+
+
 (defn random-uuid []
   #?(:cljs (cljs.core/random-uuid)
      :clj  (java.util.UUID/randomUUID)))
