@@ -6,7 +6,7 @@
 
    [kunagi-base.utils :as utils]
    [kunagi-base.context :as context]
-   [kunagi-base.appconfig.api :as appconfig]
+   [kcu.config :as config]
    [kunagi-base.appmodel :as am]))
 
 
@@ -70,14 +70,15 @@
   (let [initial-data (update initial-data :app/info complete-appinfo)
         db (-> {}
                (utils/deep-merge initial-data)
-               appconfig/init-app-db)]
+               (assoc :appconfig/config (config/config))
+               (assoc :appconfig/secrets-f config/secrets))]
     #?(:clj  (context/update-app-db #(-init-app-db % db))
        :cljs (rf/dispatch-sync [::init db]))))
 
 
 #?(:cljs
    (defn install-serviceworker! []
-     (let [config (appconfig/config)
+     (let [config (config/config)
            install? (if (contains? config :service-worker?)
                       (get config :service-worker?)
                       true)]

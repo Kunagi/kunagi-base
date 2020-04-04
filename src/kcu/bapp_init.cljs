@@ -1,7 +1,10 @@
-(ns kunagi-base-browserapp.appconfig.load-as-browserapp
+(ns kcu.bapp-init
   (:require
    [cljs.reader :refer [read-string]]
-   [kunagi-base.appconfig.api :as appconfig-api]))
+   [kcu.tap]
+   [kcu.config :as config]))
+
+(tap> [:dbg ::loading])
 
 
 (defn- load-config []
@@ -14,5 +17,5 @@
 
 (defonce load-once!
   (do
-    (appconfig-api/set-config! (load-config))
+    (config/set-config! (load-config))
     :done))

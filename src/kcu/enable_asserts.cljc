@@ -1,4 +1,4 @@
-(ns kunagi-base.enable-asserts
+(ns kcu.enable-asserts
   (:require
    [clojure.spec.alpha :as s]))
 

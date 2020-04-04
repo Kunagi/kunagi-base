@@ -231,12 +231,12 @@
 ;;                   "Noname App")))
 
 
-(defn init []
+(defn- init []
   (log-environment-info)
   (system/dispatch-event system
                          {:event/name :sapp/initialized}))
 
-(defn main [& args]
+(defn start [& args]
   (try
     (init)
     (catch Exception ex

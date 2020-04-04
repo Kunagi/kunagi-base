@@ -2,9 +2,27 @@
 
  :foreign {
            ;; cljc
+           org.clojure/clojure       {:mvn/version "1.10.0"}
            mvxcvi/puget              {:mvn/version "1.1.0"}
            datascript                {:mvn/version "0.18.5"}
+           com.taoensso/sente        {:mvn/version "1.15.0"}
+           tongue                    {:mvn/version "0.2.9"}
 
            ;; clj
            clojure-term-colors       {:mvn/version "0.1.0"}
-           io.aviso/pretty           {:mvn/version "0.1.37"}}}
+           io.aviso/pretty           {:mvn/version "0.1.37"}
+           ring                      {:mvn/version "1.8.0"}
+           ring/ring-defaults        {:mvn/version "0.3.2"}
+           compojure                 {:mvn/version "1.6.1"}
+           http-kit                  {:mvn/version "2.3.0"}
+           ring-oauth2               {:mvn/version "0.1.4"}
+           com.auth0/java-jwt        {:mvn/version "3.10.2"}
+
+           ;; cljs
+           org.clojure/clojurescript {:mvn/version "1.10.520"}
+           venantius/accountant      {:mvn/version "0.2.5"}
+           com.cemerick/url          {:mvn/version "0.1.1"}
+
+           ;; tooling
+           lambdaisland/kaocha {:mvn/version "1.0-612"}
+           thheller/shadow-cljs {:mvn/version "2.8.94"}}}

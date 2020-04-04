@@ -1,8 +1,6 @@
 (ns kunagi-base.cqrs.api
   (:require
-   [clojure.spec.alpha :as s]
-
-   [kunagi-base.appconfig.api :as appconfig]))
+   [clojure.spec.alpha :as s]))
 
 
 (s/def ::query-key qualified-keyword?)
