@@ -3,6 +3,7 @@
   (:require
    [clojure.spec.alpha :as s]
    [ring.util.request :as ring-request]
+   [io.aviso.exception :as aviso-exception]
 
    [kcu.utils :as u]
    [kcu.query :as query]
@@ -204,3 +205,40 @@
                               :patient/id "p1"})
 
     (-> system :transactions deref first :tx-num)))
+
+
+(defn- log-environment-info []
+  (tap> [:inf ::environment-info
+         {:working-directory (System/getProperty "user.dir")
+          :user-name (System/getProperty "user.name")
+          :user-home (System/getProperty "user.home")
+          :java-version (System/getProperty "java.version")
+          :locale (-> (java.util.Locale/getDefault) .toString)}]))
+
+
+;; (defn- complete-appinfo [appinfo]
+;;   (assoc
+;;    appinfo
+;;    :app-name (or (-> appinfo :app-name)
+;;                  (-> appinfo :project :id)
+;;                  "noname")
+;;    :app-version (or (-> appinfo :app-version)
+;;                     (str (or (-> appinfo :release :major) 0)
+;;                          "."
+;;                          (or (-> appinfo :release :minor) 0)))
+;;    :app-label (or (-> appinfo :app-label)
+;;                   (-> appinfo :project :name)
+;;                   "Noname App")))
+
+
+(defn init []
+  (log-environment-info)
+  (system/dispatch-event system
+                         {:event/name :sapp/initialized}))
+
+(defn main [& args]
+  (try
+    (init)
+    (catch Exception ex
+      (aviso-exception/write-exception ex)
+      (System/exit 1))))

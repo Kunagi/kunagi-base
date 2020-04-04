@@ -195,7 +195,7 @@
 
 
 (defn projectors-by-event [event-name]
-  (map projector (registry/entity :projector-ids-by-event event-name)))
+  (map projector (registry/maybe-entity :projector-ids-by-event event-name)))
 
 
 ;; (defn projector [projector-id]

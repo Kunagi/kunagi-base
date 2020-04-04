@@ -1,6 +1,5 @@
 (ns kunagi-base.logging.tap-formated
   (:require
-   [clojure.stacktrace :as stacktrace]
    [clojure.term.colors :as c]
    [puget.printer :as puget]
    [io.aviso.exception :as aviso]
