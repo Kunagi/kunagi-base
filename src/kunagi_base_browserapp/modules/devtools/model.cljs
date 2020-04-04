@@ -4,7 +4,6 @@
    [kunagi-base.modules.startup.model :refer [def-init-function]]
    [kunagi-base-browserapp.modules.desktop.model :refer [def-page]]
 
-   [kunagi-base-browserapp.modules.devtools.api :as impl]
    [kunagi-base-browserapp.modules.devtools.tap :as tap]
    [kunagi-base-browserapp.modules.devtools.cards :as cards]))
 
@@ -27,12 +26,6 @@
    :page/module [:module/ident :devtools]
    :page/title-text "devtools: tap>"
    :page/workarea [tap/Workarea]})
-
-
-;; (def-init-function
-;;   {:init-function/id ::graphed
-;;    :init-function/module [:module/ident :devtools]
-;;    :init-function/f #(impl/init-graphed %)})
 
 
 (def-init-function
