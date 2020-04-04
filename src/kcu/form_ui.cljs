@@ -51,6 +51,8 @@
         reset #(reset! STATE initial-state)]
     (fn [options]
       (let [state @STATE
+            blocked? (-> state :blocked?)
+            error-text (-> state :error-text)
             trigger (or (engage-dialog-trigger (-> options :trigger)
                                                STATE)
                         (engage-dialog-trigger [:> mui/Button {}
@@ -79,7 +81,10 @@
                     :on-change #(swap! STATE assoc :value (-> % .-target .-value))
                     :on-key-down #(when (= 13 (-> % .-keyCode))
                                     (submit))}
-                   (-> options :text-field))]]
+                   (-> options :text-field)
+                   {:disabled blocked?
+                    :error (boolean error-text)
+                    :helper-text error-text})]]
           [:> mui/DialogActions
            [:> mui/Button
             {:on-click reset
@@ -88,5 +93,6 @@
            [:> mui/Button
             {:color :primary
              :variant :contained
+             :disabled blocked?
              :on-click submit}
             (get options :submit-button-text "Submit")]]]]))))

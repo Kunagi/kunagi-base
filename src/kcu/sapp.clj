@@ -173,13 +173,16 @@
                   :projection-storage (projection-storage)}))
 
 
-(defn dispatch [command]
-  (system/dispatch-command system command))
+(defn dispatch
+  ([command]
+   (dispatch command nil))
+  ([command callback]
+   (system/dispatch-command system command callback)))
 
 
-(defn dispatch-from-bapp [command context]
+(defn dispatch-from-bapp [command callback context]
   ;; FIXME check permission
-  (system/dispatch-command system command))
+  (system/dispatch-command system command callback))
 
 
 (defn subscribe [query on-change-f context]

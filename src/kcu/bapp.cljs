@@ -81,9 +81,28 @@
                  1000)))
 
 
-(defn dispatch-on-server [command]
-  (send-message-to-server [::dispatch command]))
+(defonce COMMAND-CALLBACKS (atom {}))
 
+
+(defn dispatch-on-server
+  ([command]
+   (dispatch-on-server command nil))
+  ([command callback]
+   (let [command (assoc command :command/id
+                        (or (-> command :command/id)
+                            (u/random-uuid-string)))]
+     (when callback
+       (swap! COMMAND-CALLBACKS assoc (-> command :command/id) callback))
+     (send-message-to-server [::dispatch command]))))
+
+
+(defmethod on-server-message :sapp/command-callback
+  [_ {:keys [command-id result]}]
+  ;; TODO default handlers for result and failure when there is no callback
+  (when command-id
+    (when-let [callback (get @COMMAND-CALLBACKS command-id)]
+      (callback result)
+      (swap! COMMAND-CALLBACKS dissoc command-id))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

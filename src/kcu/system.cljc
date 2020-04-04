@@ -207,7 +207,7 @@
         effects-groups (dissoc effects-groups :rejection)]
 
     (if rejection
-      (command-callback system rejection)
+      (command-callback system (assoc rejection :rejected? true))
       (do
 
         ;; TODO try-catch
@@ -255,7 +255,7 @@
       aggregate)
     (catch #?(:clj Exception :cljs :default) ex
       (update-transaction system (-> tx :tx-id) #(assoc % :exception ex))
-      (command-callback system {:failed? true :ex ex})
+      (command-callback system {:rejected? true :ex ex})
       aggregate)))
 
 
@@ -298,7 +298,7 @@
     (catch #?(:clj Exception :cljs :default) ex
       (log-error system :triggering-command-failed {:exec (-> system :exec)}
                                                    ex)
-      (command-callback system {:failed? true :exception ex}))))
+      (command-callback system {:rejected? true :exception ex}))))
 
 
 (defn dispatch-command
