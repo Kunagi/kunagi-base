@@ -107,6 +107,8 @@
      [CommandCard command]
      ;; FIXME exceptions / errors
      ;; [muic/Data (-> tx :keys)]
+     (when-let [exception (-> tx :exception)]
+       [muic/ExceptionCard exception])
      (when-let [exception (-> tx :command-exception)]
        [muic/ExceptionCard exception])
      (when-let [ex (-> tx :events-exception)]
@@ -219,13 +221,14 @@
 
 (defn Row
   [system component-f]
-  [:tr
-   (for [tx (-> system system/transactions)]
-     ^{:key (-> tx :tx-num)}
-     [:td
-      [muic/Card
-       {:style {:height "100%"}}
-       [component-f tx]]])])
+  (into
+   [:tr]
+   (map (fn [tx]
+          [:td
+           [muic/Card
+            {:style {:height "100%"}}
+            [component-f tx]]])
+        (-> system system/transactions))))
 
 
 (defn HeaderRow [text]
@@ -264,22 +267,31 @@
                          (conj ret [uic projection-id]))
                        [] (projection-ids-by-type system (-> uic :model-type)))))
             [] ui-components)))
-    ;; (for [uic ui-components
-    ;;       projection-id (projection-ids-by-type system (-> uic :model-type))]
-    ;;   ["x" projection-id])))
 
 
 (defn CommandsFlow
   [flow]
   (let [commands (-> flow :commands)
-        system (-> (system/new-system :simulator {})
-                   (system/dispatch-commands commands))
+        system (system/new-system :simulator {})
+
+        _ (system/dispatch-command system
+                                   {:command/name :wartsapp/ziehe-nummer
+                                    :patient/id "patient-X"}
+                                   #(js/alert %))
+
+        _ (system/dispatch-commands system commands)
+
+        errors (system/errors system)
 
         projection-ids (->> system
                             system/loaded-projections
                             (map :projection/id))]
     [muic/Stack-1
-     ;[muic/Card [muic/Data (uics-and-projections system)]]
+     ;; [muic/Card [muic/Data (uics-and-projections system)]]
+     (for [error errors]
+       ^{:key error}
+       [muic/ErrorCard
+        [muic/Data error]])
      [:div {:style {:overflow-x :auto}}
       [:table {:style {:height "1px"}}
        [:tbody
@@ -303,11 +315,7 @@
         [HeaderRow "User Interface Components"]
         (for [ui-and-projection (uics-and-projections system)]
           ^{:key ui-and-projection}
-          [Row system (partial TxUiComponent ui-and-projection)])]]]])) ;projection-id)])]]]]))
-        ;; (for [uic ui-components]
-        ;;       projection-id (projection-ids-by-type system (-> uic :model-type))]
-        ;;   ^{:key [(-> uic :id) (-> uic :projector :id)]}
-        ;;   [Row system (partial TxUiComponent uic)])]]]])) ;projection-id)])]]]]))
+          [Row system (partial TxUiComponent ui-and-projection)])]]]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -18,16 +18,26 @@
          update tx-id f))
 
 
+(defn errors [system]
+  (-> system :errors deref vals))
+
+
 (defn log-error
   ([system error-type data]
    (log-error system error-type data nil))
   ([system error-type data ex]
-   (tap> [:err ::system-error error-type {:system (-> system :id)
-                                          :error-data data
-                                          :exception ex}])
-   (when ex
-     (tap> [:err ::system-error-exception ex]))))
-   ;; TODO store errors in atom
+   (let [id (u/random-uuid-string)]
+     (tap> [:err ::system-error error-type {:system (-> system :id)
+                                            :error-data data
+                                            :exception ex}])
+     (when ex
+       (tap> [:err ::system-error-exception ex]))
+     (swap! (-> system :errors)
+            assoc id
+            {:type error-type
+             :data data
+             :exception ex
+             :id id}))))
 
 
 (u/do-once
@@ -142,53 +152,102 @@
         (assoc-in [:exec :aggregate-id] aggregate-id))))
 
 
+(defn- command-callback [system result]
+  (tap> [:dbg ::command-callback result])
+  (when-let [callback (-> system :exec :callback)]
+    (callback result)))
+
+
 (defn- reify-aggregate-effect [system aggregator effect]
   (cond
-
-    (contains? effect :event/name)
-    (dispatch-event system (assoc effect
-                                  :event/name
-                                  (registry/as-global-keyword
-                                   (-> effect :event/name)
-                                   (-> aggregator :bounded-context))))
 
     :else
     (log-error system :unsupported-effect {:effect effect})))
 
 
+(defn- dispatch-aggregate-effect-events [system aggregator events]
+  (doseq [event (map #(assoc %
+                             :event/name
+                             (registry/as-global-keyword
+                              (-> % :event/name)
+                              (-> aggregator :bounded-context)))
+                     events)]
+    (dispatch-event system event)))
+
+
 (defn- reify-aggregate-effects [system aggregator tx]
-  (doseq [effect (-> tx :effects)]
-    (reify-aggregate-effect system aggregator effect)))
+  (let [effects-groups (group-by (fn [effect]
+                                   (cond
+
+                                     (contains? effect :event/name)
+                                     :event
+
+                                     (contains? effect :effect/type)
+                                     (-> effect :effect/type)
+
+                                     :else
+                                     (throw (ex-info (str "Missing `:effect/type` in effect.")
+                                                     {:tx tx
+                                                      :effect effect}))))
+                                 (-> tx :effects))
+        events (-> effects-groups :event)
+        effects-groups (dissoc effects-groups :event)
+        result (-> effects-groups :result first) ;; TODO exception if more
+        effects-groups (dissoc effects-groups :result)
+        rejection (-> effects-groups :rejection first) ;; TODO exception if more
+        effects-groups (dissoc effects-groups :rejection)]
+
+    (if rejection
+      (command-callback system rejection)
+      (do
+
+        ;; TODO try-catch
+        (doseq [[_type effects] effects-groups]
+          (doseq [effect effects]
+            (reify-aggregate-effect system aggregator effect)))
+
+        (when events (dispatch-aggregate-effect-events system aggregator events))
+
+        (command-callback system (or result
+                                     {:effect/type :result}))))))
+
+
+
 
 
 (defn- command-transaction-update-function
   "The aggregate update function which is running inside the transaction
   (agent or atom)."
   [system tx aggregate]
-  (let [storage (-> system :options :aggregate-storage)
-        command (-> tx :command)
-        aggregator (-> tx :aggregator)
-        aggregate-id (-> tx :aggregate-id)
-        aggregator-id (-> aggregator :id)
+  (try
+    (let [storage (-> system :options :aggregate-storage)
+          command (-> tx :command)
+          aggregator (-> tx :aggregator)
+          aggregate-id (-> tx :aggregate-id)
+          aggregator-id (-> aggregator :id)
 
-        aggregate (or aggregate
-                      (when storage (load-aggregate-value storage
-                                                          aggregator-id
-                                                          aggregate-id))
-                      (aggregator/new-aggregate aggregator))
-        aggregate (aggregator/execute-command aggregator aggregate command)
-        tx (get aggregate :exec)
-        aggregate (dissoc aggregate :exec)
-        tx (assoc tx :aggregate aggregate)]
-    (when storage
-      (store-aggregate-effects storage
-                               aggregator-id aggregate-id
-                               (-> tx :effects))
-      (store-aggregate-value storage
-                             aggregator-id aggregate-id aggregate))
-    (reify-aggregate-effects system aggregator tx)
-    (update-transaction system (-> tx :tx-id) #(merge % tx))
-    aggregate))
+          aggregate (or aggregate
+                        (when storage (load-aggregate-value storage
+                                                            aggregator-id
+                                                            aggregate-id))
+                        (aggregator/new-aggregate aggregator))
+          aggregate (aggregator/execute-command aggregator aggregate command)
+          tx (get aggregate :exec)
+          aggregate (dissoc aggregate :exec)
+          tx (assoc tx :aggregate aggregate)]
+      (when storage
+        (store-aggregate-effects storage
+                                 aggregator-id aggregate-id
+                                 (-> tx :effects))
+        (store-aggregate-value storage
+                               aggregator-id aggregate-id aggregate))
+      (reify-aggregate-effects system aggregator tx)
+      (update-transaction system (-> tx :tx-id) #(merge % tx))
+      aggregate)
+    (catch #?(:clj Exception :cljs :default) ex
+      (update-transaction system (-> tx :tx-id) #(assoc % :exception ex))
+      (command-callback system {:failed? true :ex ex})
+      aggregate)))
 
 
 (defn- trigger-command-transaction [system]
@@ -203,17 +262,51 @@
     system))
 
 
+(defn- prepare-command [system command]
+  (let [command (assoc command
+                       :command/id (or (-> command :command/id)
+                                       (u/random-uuid-string))
+                       :command/time (or (-> command :command/time)
+                                         (u/current-time-millis)))]
+    (assoc-in system [:exec :command] command)))
+
+
+(defn- register-running-command [system]
+  (let [command (-> system :exec :command)]
+    (swap! (-> system :running-commands)
+           assoc (-> command :command/id) command)))
+
+
+
+
+(defn- safe-dispatch-command [system]
+  (register-running-command system)
+  (try
+    (-> system
+        lookup-aggregator
+        lookup-aggregate-id
+        trigger-command-transaction)
+    (catch #?(:clj Exception :cljs :default) ex
+      (log-error system :triggering-command-failed {:exec (-> system :exec)}
+                                                   ex)
+      (command-callback system {:failed? true :exception ex}))))
+
+
 (defn dispatch-command
-  [system command]
-  (-> system
-      (assoc :exec {:command command})
-      lookup-aggregator
-      lookup-aggregate-id
-      trigger-command-transaction))
+  ([system command]
+   (dispatch-command system command nil))
+  ([system command callback]
+   (-> system
+       (assoc :exec {:callback callback})
+       (prepare-command command)
+       safe-dispatch-command)))
 
 
 (defn dispatch-commands [system commands]
-  (reduce dispatch-command system commands))
+  (doseq [command commands]
+    (dispatch-command system command))
+  system)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -352,7 +445,9 @@
        :options options
        :buckets {:projection (atom {})
                  :aggregate (atom {})}
-       :transactions (atom {})}
+       :transactions (atom {})
+       :running-commands (atom {})
+       :errors (atom {})}
       init-transactor
       init-eventbus
       register-projectors-event-handler))
