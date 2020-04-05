@@ -36,14 +36,17 @@
                 (u/encode-edn v))))
 
 
-(defn durable-ratom [k default-value]
-  (let [value (get-from-local-storage k)
-        ratom (r/atom (or value default-value))]
-    (add-watch ratom ::durable-ratom
-               (fn [_ _ old-val new-val]
-                 (when (not= old-val new-val)
-                   (set-to-local-storage k new-val))))
-    ratom))
+(defn durable-ratom
+  ([k]
+   (durable-ratom k nil))
+  ([k default-value]
+   (let [value (get-from-local-storage k)
+         ratom (r/atom (or value default-value))]
+     (add-watch ratom ::durable-ratom
+                (fn [_ _ old-val new-val]
+                  (when (not= old-val new-val)
+                    (set-to-local-storage k new-val))))
+     ratom)))
 
 
 (defn clear-local-storage []

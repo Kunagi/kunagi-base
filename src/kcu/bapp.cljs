@@ -203,8 +203,8 @@
 ;;; auth ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defonce USER-ID (r/atom (bu/get-from-local-storage :bapp/user-id)))
-(defonce USER (r/atom (bu/get-from-local-storage :bapp/user)))
+(defonce USER-ID (bu/durable-ratom :bapp/user-id))
+(defonce USER (bu/durable-ratom :bapp/user))
 
 (defn user-id [] @USER-ID)
 (defn user [] @USER)
@@ -217,8 +217,7 @@
                 (if (or (not= (-> user :user/id) (-> new-value :user/id))
                         (> (count (keys new-value)) 1))
                   new-value
-                  (merge user new-value))))
-  (bu/set-to-local-storage :bapp/user @USER))
+                  (merge user new-value)))))
 
 
 (defmethod on-server-message :sapp/user-authenticated
@@ -227,7 +226,6 @@
   ;;   (when (not= user-id prev-user-id)
   ;;     (bu/clear-all-data-and-reload)))
   (reset! USER-ID user-id)
-  (bu/set-to-local-storage :bapp/user-id user-id)
   (update-user {:user/id user-id}))
 
 
