@@ -29,14 +29,16 @@
 (defn durable-uuid
   [identifier]
   (let [storage-key (str "uuid." identifier)
-        uuid (-> js/window .-localStorage (.getItem storage-key))]
+        uuid (bu/get-from-local-storage storage-key)]
     (if uuid
       uuid
       (let [uuid (u/random-uuid-string)]
-        (-> js/window .-localStorage (.setItem storage-key uuid))
+        (bu/set-to-local-storage storage-key uuid)
         uuid))))
 
 
+(defn dev-mode? []
+  (-> (config/config) :dev-mode?))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -210,6 +212,13 @@
 (defn user [] @USER)
 
 (def authenticated? user-id)
+
+
+(defn- user-has-permission? [req-perm]
+  (when-let [user (user)]
+    (let [user-perms (or (-> user :user/perms)
+                         #{})]
+      (contains? user-perms req-perm))))
 
 
 (defn- update-user [new-value]
