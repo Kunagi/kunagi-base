@@ -110,7 +110,19 @@
       (swap! COMMAND-CALLBACKS dissoc command-id))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; assets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn new-asset [id options]
+  (let [durable? (-> options :durable?)]
+     (if durable?
+       (bu/durable-ratom [:bapp/asset id])
+       (r/atom nil))))
+
+
+;;;; projections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (defn projection-value-key [projector-id projection-id]
   (str "projections/"
@@ -241,6 +253,20 @@
 (defn clear-all-data-and-sign-out []
   (bu/clear-all-data)
   (bu/navigate-to "/sign-out"))
+
+
+(u/do-once
+
+ ;; to prevent mixing up user data reload the page if user changes or signs out
+
+ (bu/subscribe-to-local-storage-clear
+  (fn []
+    (bu/reload-page)))
+
+ (bu/subscribe-to-local-storage
+  :bapp/user-id (fn [new-user-id]
+                  (when-not (= new-user-id (user-id))
+                    (bu/reload-page)))))
 
 
 ;;; startup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

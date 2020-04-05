@@ -18,15 +18,22 @@
 
 ;;; localStorage ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 (defn as-local-storage-key [k]
   (if (string? k) k (u/encode-edn k)))
 
 
 (defn get-from-local-storage [k]
-  (-> js/window
-      .-localStorage
-      (.getItem (as-local-storage-key k))
-      u/decode-edn))
+  (try
+    (-> js/window
+        .-localStorage
+        (.getItem (as-local-storage-key k))
+        u/decode-edn)
+    (catch :default ex
+      (throw (ex-info (str "Loading `" k "` from localStorage failed.")
+                      {:key k
+                       :storageKey (as-local-storage-key k)}
+                      ex)))))
 
 
 (defn set-to-local-storage [k v]
@@ -34,6 +41,25 @@
       .-localStorage
       (.setItem (as-local-storage-key k)
                 (u/encode-edn v))))
+
+
+(defn subscribe-to-local-storage [k callback]
+  (-> js/window
+      (.addEventListener
+       "storage"
+       (fn [event]
+         (when (= (as-local-storage-key k)
+                  (-> event .-key))
+           (callback (u/decode-edn (-> event .-newValue))))))))
+
+
+(defn subscribe-to-local-storage-clear [callback]
+  (-> js/window
+      (.addEventListener
+       "storage"
+       (fn [event]
+         (when-not (-> event .-key)
+           (callback))))))
 
 
 (defn durable-ratom
@@ -46,6 +72,10 @@
                 (fn [_ _ old-val new-val]
                   (when (not= old-val new-val)
                     (set-to-local-storage k new-val))))
+     (subscribe-to-local-storage
+      k (fn [new-val]
+          (when-not (= new-val @ratom)
+            (reset! ratom new-val))))
      ratom)))
 
 
