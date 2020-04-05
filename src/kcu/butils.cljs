@@ -5,6 +5,19 @@
    [kcu.utils :as u]))
 
 
+;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn reload-page []
+  (js/location.reload))
+
+
+(defn navigate-to [href]
+  (set! (.-location js/window) "/sign-out"))
+
+
+;;; localStorage ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn as-local-storage-key [k]
   (if (string? k) k (u/encode-edn k)))
 
@@ -31,6 +44,10 @@
                  (when (not= old-val new-val)
                    (set-to-local-storage k new-val))))
     ratom))
+
+
+(defn clear-local-storage []
+  (-> js/window .-localStorage .clear))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -116,3 +133,17 @@
     (when-not (get-from-local-storage localstorage-key)
       (show-notification title options)
       (set-to-local-storage localstorage-key (u/current-time-millis)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn clear-all-data []
+  ;; TODO clear db
+  ;; TODO clear cookies
+  (clear-local-storage))
+
+
+(defn clear-all-data-and-reload-page []
+  (clear-all-data)
+  (reload-page))

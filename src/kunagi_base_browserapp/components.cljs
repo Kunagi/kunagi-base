@@ -29,20 +29,3 @@
      protected-component
      alternative-component)])
 
-
-(defn CommAsyncStatusIndicator []
-  (let [state (<subscribe [:comm-async/state])
-        open? (-> state :open?)]
-    (if open?
-      [:> mui/IconButton
-       {:disabled true
-        :title "Online"
-        :size :small
-        :style {:color :grey}}
-       [:> icons/Link]]
-      [:> mui/IconButton
-       {:disabled true
-        :title "Offline"
-        :size :small
-        :style {:color :red}}
-       [:> icons/LinkOff]])))

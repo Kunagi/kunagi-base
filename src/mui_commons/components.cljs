@@ -39,11 +39,17 @@
 
 
 (defn Data
-  [data]
-  [:code
-   {:style {:white-space :pre-wrap
-            :overflow :auto}}
-   (with-out-str (pprint/pprint data))])
+  [& datas]
+  (into
+   [:div.Data
+    {:style {:display :grid
+             :grid-gap "10px"}}]
+   (map (fn [data]
+          [:code
+           {:style {:white-space :pre-wrap
+                    :overflow :auto}}
+           (with-out-str (pprint/pprint data))])
+        datas)))
 
 
 (defn None []

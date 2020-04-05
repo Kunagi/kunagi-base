@@ -30,10 +30,7 @@
 (s/def ::route-path string?)
 
 
-;;; appmodel
-
-
-;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn- request-permitted?
@@ -143,7 +140,7 @@
 ;;; appmodel routes
 
 
-;;; asset route
+;;; asset route ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn- serve-asset [context]
@@ -163,6 +160,9 @@
            :body "Providing asset failed"})))
     {:status 400
      :body "Missing Parameter: [edn]"}))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn- routes-from-appmodel []
@@ -192,33 +192,7 @@
      wrappers)))
 
 
-;;; sente
-
-(defn determine-sente-user-id [request]
-  (str
-   (-> request :session :auth/user-id)
-   "/"
-   (-> request :client-id)))
-
-
-(defn- on-connections-changed
-  [old-val new-val]
-  (let [old-ids (:any old-val)
-        new-ids (:any new-val)
-        connected-ids (remove old-ids new-ids)
-        disconnected-ids (remove new-ids old-ids)]
-    (doseq [client-id connected-ids]
-      (tap> [:dbg ::connected client-id]))
-    (doseq [client-id disconnected-ids]
-      (tap> [:dbg ::disconnected client-id]))))
-
-
-(defn- on-event-received [event context]
-  (events/dispatch-event! context event))
-
-
-(defn- respond-to-client [send-fn sente-user-id event]
-  (send-fn sente-user-id [:kunagi-base/event event]))
+;;; sente ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn- respond-f [data]
@@ -226,13 +200,6 @@
     (let [send-fn (-> data :send-fn)
           uid (-> data :uid)]
       (send-fn uid message))))
-
-
-(defn- context-from-http-async-data [data]
-  (-> data
-      context/from-http-async-data
-      auth/update-context
-      (assoc :comm/response-f (respond-f data))))
 
 
 (defn- on-subscription-changed
@@ -247,6 +214,32 @@
                                       :result result}]))
 
 
+(defonce SENTE-UID->USER-ID (atom {}))
+
+
+(defn- on-sente-client-connected [data]
+  (let [sente-uid (-> data :uid)
+        user-id (-> data :ring-req :session :auth/user-id)]
+    (tap> [:dbg ::client-connected {:sente-uid sente-uid
+                                    :user-id user-id}])
+    (swap! SENTE-UID->USER-ID assoc
+           sente-uid user-id)
+    (when user-id
+      ((respond-f data) [:sapp/user-authenticated user-id]))))
+
+
+(defn- on-sente-client-disconnected [data]
+  (let [sente-uid (-> data :uid)
+        user-id (-> :ring-req :session :auth/user-id)]
+    (tap> [:dbg ::client-disconnected {:sente-uid sente-uid
+                                       :user-id user-id}])
+    (swap! SENTE-UID->USER-ID dissoc sente-uid)))
+
+
+(defn- context-from-sente-data [data]
+  {:sente data})
+
+
 (defn- on-data-received [data]
   ;; (tap> [:!!! ::data-received data])
 
@@ -256,46 +249,42 @@
     ::nop
 
     :chsk/uidport-open
-    ::nop
+    (on-sente-client-connected data)
 
     :chsk/uidport-close
-    ::nop
+    (on-sente-client-disconnected data)
 
     :kcu.bapp/dispatch
     (sapp/dispatch-from-bapp (-> data :event second)
                              (partial on-command-callback
                                       (-> data :event second)
                                       (respond-f data))
-                             (context-from-http-async-data data))
+                             (context-from-sente-data data))
 
     :kcu.bapp/subscribe
     (sapp/subscribe (-> data :event second)
                     (partial on-subscription-changed
                              (-> data :event second)
                              (respond-f data))
-                    (context-from-http-async-data data))
+                    (context-from-sente-data data))
 
     :kcu.bapp/conversation-messages
     (tap> [:!!! ::conversation-messages-received (-> data :event second)])
 
-    :kunagi-base/event
-    (on-event-received (-> data :event second)
-                       (context-from-http-async-data data))
-
     (tap> [:err ::unsupported-async-message-received data])))
 
+
+(defn- sente-uid-f [request]
+  (str (or (-> request :session :auth/user-id)
+           "anonymous")
+       "/" (-> request :client-id)))
 
 
 (defn- create-socket
   []
   (let [socket (sente/make-channel-socket!
                 (sente-adapter/get-sch-adapter)
-                {:user-id-fn determine-sente-user-id})]
-    (add-watch (:connected-uids socket)
-               :connected-uids
-               (fn [_ _ old-val new-val]
-                 (when (not= old-val new-val)
-                   (on-connections-changed old-val new-val))))
+                {:user-id-fn sente-uid-f})]
     (sente/start-server-chsk-router!
      (:ch-recv socket)
      #(on-data-received %))
@@ -303,13 +292,14 @@
     socket))
 
 
-(defonce !sente-socket (atom nil))
+(defonce SENTE-SOCKET (atom nil))
+
 
 (defn- sente-socket []
-  (if-let [socket @!sente-socket]
+  (if-let [socket @SENTE-SOCKET]
     socket
     (let [socket (create-socket)]
-      (reset! !sente-socket socket)
+      (reset! SENTE-SOCKET socket)
       socket)))
 
 
@@ -344,15 +334,6 @@
    ;; (compojure-route/resources "/"    {:root "public"})
    (compojure-route/not-found        "404 - Page not found")])
 
-
-
-;; (defn- routes-from-cqrs [context]
-;;   (->> (cqrs/query-sync context [:http-server/routes])
-;;        :results
-;;        (map (fn [{:as route :keys [method]}]
-;;               (case method
-;;                 ;:post (POST route)
-;;                 (GET route))))))
 
 
 (defn- apply-wrappers [routes wrappers]

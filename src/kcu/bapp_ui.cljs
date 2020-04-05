@@ -3,6 +3,7 @@
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
 
+   [mui-commons.components :as muic]
    [kcu.bapp :as bapp]))
 
 
@@ -22,3 +23,13 @@
         :size :small
         :style {:color :red}}
        [:> icons/LinkOff]])))
+
+
+(defn DebugUser []
+  [muic/Data :bapp/user (bapp/user)])
+
+
+(defn DebugCurrent []
+  [muic/Stack-1
+   [muic/Card
+    [DebugUser]]])

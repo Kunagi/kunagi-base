@@ -200,6 +200,41 @@
   (registry/entities-by :ui-component :model-type model-type))
 
 
+;;; auth ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defonce USER-ID (r/atom (bu/get-from-local-storage :bapp/user-id)))
+(defonce USER (r/atom (bu/get-from-local-storage :bapp/user)))
+
+(defn user-id [] @USER-ID)
+(defn user [] @USER)
+
+(def authenticated? user-id)
+
+
+(defn- update-user [new-value]
+  (swap! USER (fn [user]
+                (if (or (not= (-> user :user/id) (-> new-value :user/id))
+                        (> (count (keys new-value)) 1))
+                  new-value
+                  (merge user new-value))))
+  (bu/set-to-local-storage :bapp/user @USER))
+
+
+(defmethod on-server-message :sapp/user-authenticated
+  [_ user-id]
+  ;; (when-let [prev-user-id @USER-ID]
+  ;;   (when (not= user-id prev-user-id)
+  ;;     (bu/clear-all-data-and-reload)))
+  (reset! USER-ID user-id)
+  (bu/set-to-local-storage :bapp/user-id user-id)
+  (update-user {:user/id user-id}))
+
+
+(defn clear-all-data-and-sign-out []
+  (bu/clear-all-data)
+  (bu/navigate-to "/sign-out"))
+
 
 ;;; startup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -222,7 +257,6 @@
 
 (defn start []
   (install-serviceworker)
-  (rf/dispatch-sync [::init])
   (connect-to-server))
 ;; (eventbus/configure! {:dummy ::configuration})
 ;; (eventbus/dispatch!
