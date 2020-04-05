@@ -30,10 +30,11 @@
         (.getItem (as-local-storage-key k))
         u/decode-edn)
     (catch :default ex
-      (throw (ex-info (str "Loading `" k "` from localStorage failed.")
-                      {:key k
-                       :storageKey (as-local-storage-key k)}
-                      ex)))))
+      (tap> [:err ::get-from-local-storage-failed
+             {:key k
+              :storageKey (as-local-storage-key k)
+              :exception ex}])
+      nil)))
 
 
 (defn set-to-local-storage [k v]
