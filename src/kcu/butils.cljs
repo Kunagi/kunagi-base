@@ -75,6 +75,7 @@
      (subscribe-to-local-storage
       k (fn [new-val]
           (when-not (= new-val @ratom)
+            (tap> [:inf ::durable-ratom-changed-in-local-storage k])
             (reset! ratom new-val))))
      ratom)))
 
