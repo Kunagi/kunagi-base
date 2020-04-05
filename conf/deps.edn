@@ -27,6 +27,7 @@
            re-frame                  {:mvn/version "0.12.0"}
            venantius/accountant      {:mvn/version "0.2.5"}
            com.cemerick/url          {:mvn/version "0.1.1"}
+           cljs-ajax                 {:mvn/version "0.7.5"}
 
            ;; tooling
            lambdaisland/kaocha       {:mvn/version "1.0-612"}

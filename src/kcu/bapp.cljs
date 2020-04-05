@@ -204,6 +204,9 @@
 ;;; startup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(def set-appinfo config/set-appinfo)
+
+
 (defn- install-serviceworker []
   (when (-> (config/appinfo) :browserapp :serviceworker)
     ;; serviceworker is supported for this app

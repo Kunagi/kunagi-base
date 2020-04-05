@@ -237,6 +237,13 @@
 
 ;;; initialization and startup
 
+
+(def set-appinfo config/set-appinfo)
+
+
+(def set-default-config config/set-default-config)
+
+
 (defn- log-environment-info []
   (tap> [:inf ::environment-info
          {:working-directory (System/getProperty "user.dir")

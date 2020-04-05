@@ -13,7 +13,7 @@
   @CONFIG)
 
 
-(defn set-default-config! [default-config]
+(defn set-default-config [default-config]
   (swap! CONFIG #(merge default-config %)))
 
 
