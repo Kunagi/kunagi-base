@@ -92,6 +92,9 @@
                    {:disabled blocked?
                     :error (boolean error-text)
                     :helper-text error-text})]]
+          (when blocked?
+           [:> mui/LinearProgress
+            {:color :secondary}])
           [:> mui/DialogActions
            [:> mui/Button
             {:on-click reset

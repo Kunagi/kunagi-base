@@ -197,6 +197,7 @@
 
 (defn- respond-f [data]
   (fn [message]
+    ;; (Thread/sleep 5000)
     (let [send-fn (-> data :send-fn)
           uid (-> data :uid)]
       (send-fn uid message))))
