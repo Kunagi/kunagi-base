@@ -35,6 +35,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; headers
+
+
+(defn install-css [css]
+  (let [head (.-head js/document)
+        style (.createElement js/document "style")
+        text-node (.createTextNode js/document css)]
+    (.appendChild style text-node);
+    (.appendChild head style)))
+
+
+(defn install-google-font-link [font]
+  (let [head (.-head js/document)
+        link (.createElement js/document "link")
+        url (str "https://fonts.googleapis.com/css?family=" font)]
+    (set! (.-type link) "text/css")
+    (set! (.-rel link) "stylesheet")
+    (set! (.-href link) url)
+    (.appendChild head link)))
+
+
+(defn install-roboto-font-link []
+  (install-google-font-link "Roboto:300,400,500"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;; notifications
 
 

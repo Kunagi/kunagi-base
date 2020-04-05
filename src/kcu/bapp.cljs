@@ -3,6 +3,7 @@
   (:require-macros [kcu.bapp])
   (:require
    [clojure.spec.alpha :as s]
+   [reagent.dom :as rdom]
    [reagent.core :as r]
    [re-frame.core :as rf]
    [ajax.core :as ajax]
@@ -225,3 +226,8 @@
 ;;  (eventbus/eventbus)
 ;;  {:event/name :bapp/initialized}
 ;;  {:dummy ::context}))
+
+
+(defn mount-app
+  [root-component-f]
+  (rdom/render [root-component-f] (.getElementById js/document "app")))
