@@ -1,6 +1,6 @@
 (ns mui-commons.init
   (:require
-   [reagent.core :as r]))
+   [reagent.dom :as rdom]))
 
 
 (defn install-css [css]
@@ -27,5 +27,4 @@
 
 (defn mount-app
   [root-component-f]
-  (r/render [root-component-f] (.getElementById js/document "app")))
-
+  (rdom/render [root-component-f] (.getElementById js/document "app")))

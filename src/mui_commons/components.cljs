@@ -2,6 +2,7 @@
   (:require
    [cljs.pprint :as pprint]
    [reagent.core :as r]
+   [reagent.dom :as rdom]
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
    ["@material-ui/core/styles" :refer [withStyles]]
@@ -461,7 +462,7 @@
      {:reagent-render
       (fn [] (conj width-aware-component @!width))
       :component-did-mount
-      #(let [node (-> % r/dom-node)
+      #(let [node (-> % rdom/dom-node)
              width (.-offsetWidth node)]
          (when-not (= width @!width)
            (reset! !width width))
