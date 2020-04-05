@@ -368,12 +368,15 @@
 (defn subscribe-to-projection [system projector-id projection-id on-change-f]
   (u/assert-spec ::projector/projector-id projector-id)
   (let [bucket (projection-bucket system projector-id projection-id)
-        watch-id (u/random-uuid)]
+        watch-id (u/random-uuid)
+        unsubscribe-f (fn unsubscribe []
+                        (remove-watch bucket watch-id))]
+    (on-change-f (projection system projector-id projection-id)
+                 unsubscribe-f)
     (add-watch bucket watch-id
                (fn [_ _ old-value new-value]
                  (when (not= old-value new-value)
-                   (on-change-f new-value (fn unsubscribe []
-                                            (remove-watch bucket watch-id))))))))
+                   (on-change-f new-value unsubscribe-f))))))
 
 
 (defn merge-projection [system projector-id projection-id other-value]
