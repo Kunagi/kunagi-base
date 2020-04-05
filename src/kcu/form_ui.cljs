@@ -84,7 +84,7 @@
             (merge {:auto-focus true
                     :margin :dense
                     :full-width true
-                    :value (-> state :value)
+                    :value (or (-> state :value) "")
                     :on-change #(swap! STATE assoc :value (-> % .-target .-value))
                     :on-key-down #(when (= 13 (-> % .-keyCode))
                                     (submit))}
