@@ -75,15 +75,6 @@
                    [?e :asset-pool/load-on-startup ?asset-paths]])))
 
 
-(defn on-asset-requested [[_ asset-pool-ident asset-path] context]
-  (tap> [:dbg ::asset-requested asset-pool-ident asset-path])
-  (let [asset (asset-for-output asset-pool-ident asset-path context)
-        response-f (-> context :comm/response-f)]
-    (response-f [:assets/asset-received {:asset-pool-ident asset-pool-ident
-                                         :asset-path asset-path
-                                         :data asset}])))
-
-
 (defn load-asset! [db path]
   (let [[module-ident asset-pool-ident asset-path] path
         asset-pool-id (asset-pool-id path)

@@ -16,13 +16,9 @@
    [compojure.core :as compojure]
    [compojure.route :as compojure-route]
 
-   [kunagi-base.modules.events.api :as events]
-
-   [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am]
    [kunagi-base.context :as context]
    [kunagi-base.auth.api :as auth]
-   [kunagi-base.cqrs.api :as cqrs]
    [kunagi-base-server.modules.assets.api :as assets]
    [kcu.sapp :as sapp]))
 
@@ -102,40 +98,6 @@
                                  "\""))))
     (ring-resp/not-found)))
 
-
-;;; cqrs routes
-
-
-(defn- a-query-handler [context query-result>http-response]
-  (if-let [edn (-> context :http/request :params :edn)]
-    (let [query (read-string edn)]
-      (try
-        (let [result (cqrs/query-sync context query)]
-          (query-result>http-response result))
-        (catch Throwable ex
-          (tap> [:dbg ::querying-failed ex])
-          {:status 400
-           :body "Querying failed"})))
-    {:status 400
-     :body "Missing Parameter: [edn]"}))
-
-
-(defn- serve-query-data [context]
-  (a-query-handler context
-                   (fn [result]
-                     (-> result
-                         (dissoc :context)
-                         pr-str
-                         (ring-resp/response)
-                         (ring-resp/content-type "text/edn")))))
-
-
-(defn- serve-query-file [context]
-  (a-query-handler context
-                   (fn [result]
-                     (let [results (get result :results)
-                           file (first results)]
-                       (serve-file file context)))))
 
 ;;; appmodel routes
 
@@ -320,12 +282,6 @@
   [(GET {:path "/api/asset"
          :serve-f serve-asset
          :req-perms [:assets/read]})
-   (GET {:path "/api/query"
-         :serve-f serve-query-data
-         :req-perms [:cqrs/query]})
-   (GET {:path "/api/query-file"
-         :serve-f serve-query-file
-         :req-perms [:cqrs/query]})
 
    (compojure/GET  "/chsk" [] (fn [req] ((:ajax-get-or-ws-handshake-fn (sente-socket)) req)))
    (compojure/POST "/chsk" [] serve-sente-post)
