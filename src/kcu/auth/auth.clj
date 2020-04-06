@@ -35,7 +35,7 @@
 
 
 (defn- assoc-oauth [this event]
-  (if-let [oauth (get this :oauth)]
+  (if-let [oauth (get event :oauth)]
     (let [user-id (u/getm event :user/id)
           service (u/getm oauth :service)
           sub (u/getm oauth :sub)]
