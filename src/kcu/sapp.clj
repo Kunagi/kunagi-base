@@ -143,16 +143,10 @@
     (system/store-aggregate-value [_this aggregator-id aggregate-id value]
       (files/write-edn (aggregate-value-file aggregator-id aggregate-id) value))
 
-    (system/store-aggregate-effects [_this aggregator-id aggregate-id effects]
+    (system/store-aggregate-tx [_this aggregator-id aggregate-id tx]
       (let [dir (aggregate-dir aggregator-id aggregate-id)
-            groups (group-by (fn [effect]
-                               (or (when (-> effect :event/name) :events)
-                                   :effects))
-                             effects)]
-        (doseq [[group-key effects] groups]
-          (doseq [effect effects]
-            (tap> [:!!! ::store {:effect effect}])
-            (files/append-edn (str dir "/" (name group-key) ".edn") effect)))))
+            file (str dir "/txs.edn")]
+        (files/append-edn file (dissoc tx :aggregate :applied-events))))
 
     (system/load-aggregate-value [_this aggregator-id aggregate-id]
       (files/read-edn (aggregate-value-file aggregator-id aggregate-id)))))

@@ -3,8 +3,58 @@
    [ring.middleware.oauth2 :as ring-oauth]
 
    [kcu.config :as config]
-   [kunagi-base.auth.api :as auth]
-   [kunagi-base.modules.events.api :as events]))
+   [kcu.sapp :as sapp]))
+
+
+(defn decode-jwt
+  [token]
+  (let [decoder (com.auth0.jwt.JWT/decode token)
+        claims (.getClaims decoder)
+        keys (.keySet claims)]
+    (reduce
+     (fn [ret key]
+       (let [claim (.get claims key)]
+         (if (.isNull claim)
+           ret
+           (assoc ret (keyword key) (or (.asString claim)
+                                        (.asInt claim)
+                                        (boolean (.asBoolean claim)))))))
+     {}
+     keys)))
+
+
+
+(defn serve-oauth-completed
+  [context]
+  ;; (tap> [:!!! :oauth (-> context :http/request)])
+  (let [request (-> context :http/request)
+        access-tokens (-> request :session :ring.middleware.oauth2/access-tokens)
+        service (-> access-tokens keys first)
+        tokens-map (get access-tokens service)
+        id-token (:id-token tokens-map)
+        ;; TODO id-token may be nil -> just redirect
+        userinfo (decode-jwt id-token)
+
+        ;; TODO try read-only sign-in first
+        !user-id (promise)]
+
+      (sapp/dispatch
+       {:command/name :kcu/sign-up-with-oauth
+        :service service
+        :userinfo userinfo}
+       (fn [result]
+         (deliver !user-id (get result :user/id))))
+
+      (let [user-id @!user-id] ;; blocking
+        (if user-id
+          (tap> [:inf ::authenticated user-id])
+          (tap> [:inf ::authentication-failed userinfo]))
+        {:session {:auth/user-id user-id}
+         :status 303
+         :headers {"Location" "/"}})))
+
+
+;;; middleware ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn- create-base-config
@@ -35,68 +85,10 @@
     :scopes           ["openid" "email" "profile"]}))
 
 
-(defn create-ring-oauth2-config
+(defn- create-ring-oauth2-config
   [config secrets]
   (let [google (create-google-config config secrets)]
     (cond-> {} google (assoc :google google))))
-
-
-(defn decode-jwt
-  [token]
-  (let [decoder (com.auth0.jwt.JWT/decode token)
-        claims (.getClaims decoder)
-        keys (.keySet claims)]
-    (reduce
-     (fn [ret key]
-       (let [claim (.get claims key)]
-         (if (.isNull claim)
-           ret
-           (assoc ret (keyword key) (or (.asString claim)
-                                        (.asInt claim)
-                                        (boolean (.asBoolean claim)))))))
-     {}
-     keys)))
-
-
-(defn serve-oauth-completed
-  [context]
-  ;; (tap> [:!!! :oauth (-> context :http/request)])
-  (let [request (-> context :http/request)
-        access-tokens (-> request :session :ring.middleware.oauth2/access-tokens)
-        service (-> access-tokens keys first)
-        tokens-map (get access-tokens service)
-        ;; token (:token tokens-map)
-        id-token (:id-token tokens-map)
-        ;; TODO id-token may be nil -> just redirect
-        userinfo (decode-jwt id-token)
-        context (auth/authorize-context context)]
-
-    ;; TODO fire app event and trigger command by policy
-    (events/dispatch-event!
-     context
-     [:kunagi-base/command-triggered
-      [:auth/oauth-userinfos "singleton"]
-      [:auth/process-userinfo {:service service
-                               :userinfo userinfo}]])
-
-    (let [!user-id (promise)]
-      (events/dispatch-event!
-       context
-       [:kunagi-base/command-triggered
-        [:auth/oauth-users "singleton"]
-        [:auth/sign-in-with-oauth {:service service
-                                   :userinfo userinfo
-                                   :return-user-id-f #(deliver !user-id %)}]])
-
-      ;;(tap> [:!!! ::waiting-for-user-id])
-      (let [user-id @!user-id]
-        ;;(tap> [:!!! ::user-id-received user-id])
-        (if user-id
-          (tap> [:inf ::authenticated user-id])
-          (tap> [:inf ::authentication-failed userinfo]))
-        {:session {:auth/user-id user-id}
-         :status 303
-         :headers {"Location" "/"}}))))
 
 
 (defn oauth2-wrapper []

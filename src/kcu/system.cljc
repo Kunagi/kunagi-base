@@ -44,7 +44,7 @@
 
   (defprotocol AggregateStorage
     (load-aggregate-value [this aggregator-id aggregate-id])
-    (store-aggregate-effects [this aggregator-id aggregate-id effects])
+    (store-aggregate-tx [this aggregator-id aggregate-id tx])
     (store-aggregate-value [this aggregator-id aggreagate-id value]))
 
 
@@ -234,35 +234,40 @@
   "The aggregate update function which is running inside the transaction
   (agent or atom)."
   [system tx aggregate]
-  (try
-    (let [storage (-> system :options :aggregate-storage)
-          command (-> tx :command)
-          aggregator (-> tx :aggregator)
-          aggregate-id (-> tx :aggregate-id)
-          aggregator-id (-> aggregator :id)
+  (let [aggregator (-> tx :aggregator)
+        aggregate-id (-> tx :aggregate-id)
+        aggregator-id (-> aggregator :id)]
+    (try
+      (let [storage (-> system :options :aggregate-storage)
+            command (-> tx :command)
 
-          aggregate (or aggregate
-                        (when storage (load-aggregate-value storage
-                                                            aggregator-id
-                                                            aggregate-id))
-                        (aggregator/new-aggregate aggregator))
-          aggregate (aggregator/execute-command aggregator aggregate command)
-          tx (get aggregate :exec)
-          aggregate (dissoc aggregate :exec)
-          tx (assoc tx :aggregate aggregate)]
-      (when storage
-        (store-aggregate-effects storage
-                                 aggregator-id aggregate-id
-                                 (-> tx :effects))
-        (store-aggregate-value storage
-                               aggregator-id aggregate-id aggregate))
-      (reify-aggregate-effects system aggregator tx)
-      (update-transaction system (-> tx :tx-id) #(merge % tx))
-      aggregate)
-    (catch #?(:clj Exception :cljs :default) ex
-      (update-transaction system (-> tx :tx-id) #(assoc % :exception ex))
-      (command-callback system {:rejected? true :ex ex})
-      aggregate)))
+            aggregate (or aggregate
+                          (when storage (load-aggregate-value storage
+                                                              aggregator-id
+                                                              aggregate-id))
+                          (aggregator/new-aggregate aggregator))
+            aggregate (aggregator/execute-command aggregator aggregate command)
+            tx (get aggregate :exec)
+            aggregate (dissoc aggregate :exec)
+            tx (assoc tx :aggregate aggregate)]
+        (when storage
+          (store-aggregate-tx storage
+                              aggregator-id aggregate-id
+                              tx)
+          (store-aggregate-value storage
+                                 aggregator-id aggregate-id aggregate))
+        (reify-aggregate-effects system aggregator tx)
+        (update-transaction system (-> tx :tx-id) #(merge % tx))
+        aggregate)
+      (catch #?(:clj Exception :cljs :default) ex
+        (log-error system
+                   :aggregate-transaction-update-failed
+                   {:aggregator-id aggregator-id
+                    :aggregate-id aggregate-id}
+                   ex)
+        (update-transaction system (-> tx :tx-id) #(assoc % :exception ex))
+        (command-callback system {:rejected? true :exception ex})
+        aggregate))))
 
 
 (defn- trigger-command-transaction [system]
