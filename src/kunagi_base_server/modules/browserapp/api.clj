@@ -3,7 +3,7 @@
    [html-tools.htmlgen :as htmlgen]
    [kcu.config :as config]
 
-   [kunagi-base-server.modules.auth-server.auth :as auth]))
+   [kcu.auth.auth :as auth]))
 
 
 (defn- browserapp-config [req context]

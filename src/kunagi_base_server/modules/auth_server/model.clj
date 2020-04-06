@@ -2,10 +2,14 @@
   (:require
    [kunagi-base.appmodel :refer [def-module]]
 
-   [kunagi-base.modules.auth.model]
    [kunagi-base-server.modules.http-server.model :refer [def-route def-routes-wrapper]]
-   [kunagi-base-server.modules.auth-server.auth :as auth]
    [kunagi-base-server.modules.auth-server.oauth2 :as oauth2]))
+
+
+(defn serve-sign-out [context]
+  {:session nil
+   :status 303
+   :headers {"Location" "/"}})
 
 
 (def-module
@@ -16,7 +20,7 @@
   {:route/id ::sign-out
    :route/module [:module/ident :auth-server]
    :route/path "/sign-out"
-   :route/serve-f auth/serve-sign-out
+   :route/serve-f serve-sign-out
    :route/req-perms []})
 
 (def-route

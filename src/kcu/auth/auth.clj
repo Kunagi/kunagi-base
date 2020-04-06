@@ -49,3 +49,23 @@
       (-> this
           (update :user-ids #(conj (or % #{}) user-id))
           (assoc-oauth event)))))
+
+
+;;; services ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn- complete-user-for-browserapp-by-oauth-userinfos [user context]
+  (let [user-id (-> user :user/id)
+        oauth-users {} ;; FIXME
+        [service sub] (-> oauth-users :user->oauth (get user-id))
+        userinfos {} ;; FIXME
+        userinfo (-> userinfos :service->sub->userinfo (get service) (get sub))
+        user (assoc user :user/oauth-userinfo userinfo)]
+    user))
+
+
+(defn user--for-browserapp [context]
+  (when-let [user-id (-> context :auth/user-id)]
+    (-> {:user/id user-id
+         :user/perms (-> context :auth/user-perms)}
+        (complete-user-for-browserapp-by-oauth-userinfos context))))
