@@ -84,37 +84,46 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn handler-projection-id-resolver [projector handler]
+(defn handler-projection-ids-resolver [projector handler]
   (if (get projector :singleton?)
-    (constantly true)
-    (or (-> handler :options :id-resolver)
-        (-> projector :id-resolver))))
+    (constantly nil)
+    (or (-> handler :options :ids-resolver)
+        (-> handler :options :id-resolver) ;deprecated
+        (-> projector :options :ids-resolver)
+        (-> projector :id-resolver)))); deprecated
 
 
 (defn projection-ids [projector handler event]
   (assert-projector projector)
   (u/assert-entity {:event/name ::event-name})
-  (let [projector-id (-> projector :id)
-        id-resolver (handler-projection-id-resolver projector handler)
-        _ (when-not id-resolver
+  (if (-> projector :singleton?)
+    [nil]
+    (let [projector-id (-> projector :id)
+          ids-resolver (handler-projection-ids-resolver projector handler)
+          _ (when-not ids-resolver
+              (throw (ex-info (str "Projecting event `"
+                                   (-> event :event/name)
+                                   "` with projector `"
+                                   projector-id
+                                   "` failed. Missing `:id-resolver` "
+                                   "or `singleton? true`.")
+                              {:projector-id projector-id
+                               :event event})))
+          entity-ids (let [ids (ids-resolver event)]
+                       (if (vector? ids)
+                         ids
+                         [ids]))]
+        (doseq [entity-id entity-ids]
+          (when-not entity-id
             (throw (ex-info (str "Projecting event `"
                                  (-> event :event/name)
                                  "` with projector `"
                                  projector-id
-                                 "` failed. Missing `:id-resolver` "
-                                 "or `singleton? true`.")
+                                 "` failed. `ids-resolver` provided nil-id id.")
                             {:projector-id projector-id
-                             :event event})))
-        entity-id (when id-resolver (id-resolver event))
-        _ (when-not (or entity-id (-> projector :singleton?))
-            (throw (ex-info (str "Projecting event `"
-                                 (-> event :event/name)
-                                 "` with projector `"
-                                 projector-id
-                                 "` failed. `id-resolver` provided no id.")
-                            {:projector-id projector-id
-                             :event event})))]
-    [entity-id]))
+                             :event event
+                             :provided-ids entity-ids}))))
+      entity-ids)))
 
 
 (defn apply-event [projector handler projection-id projection event]
