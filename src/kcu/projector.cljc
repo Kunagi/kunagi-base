@@ -91,7 +91,7 @@
         (-> projector :id-resolver))))
 
 
-(defn projection-id [projector handler event]
+(defn projection-ids [projector handler event]
   (assert-projector projector)
   (u/assert-entity {:event/name ::event-name})
   (let [projector-id (-> projector :id)
@@ -114,7 +114,7 @@
                                  "` failed. `id-resolver` provided no id.")
                             {:projector-id projector-id
                              :event event})))]
-    entity-id))
+    [entity-id]))
 
 
 (defn apply-event [projector handler projection-id projection event]
@@ -163,7 +163,7 @@
 (defn handle-event [projector get-projection event]
   (assert-projector projector)
   (when-let [handler (handler-for-event projector event)]
-    (let [entity-ids [(projection-id projector handler event)]]
+    (let [entity-ids (projection-ids projector handler event)]
       (doseq [entity-id entity-ids]
         (let [projection (get-projection entity-id)]
           (apply-event projector handler entity-id projection event))))))
