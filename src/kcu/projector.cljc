@@ -163,9 +163,10 @@
 (defn handle-event [projector get-projection event]
   (assert-projector projector)
   (when-let [handler (handler-for-event projector event)]
-    (let [entity-id (projection-id projector handler event)
-          projection (get-projection entity-id)]
-      (apply-event projector handler entity-id projection event))))
+    (let [entity-ids [(projection-id projector handler event)]]
+      (doseq [entity-id entity-ids]
+        (let [projection (get-projection entity-id)]
+          (apply-event projector handler entity-id projection event))))))
 
 
 (defn handle-events [projector p-pool events]

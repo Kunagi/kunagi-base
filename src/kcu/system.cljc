@@ -422,12 +422,13 @@
   (let [event (assoc event :event/name (-> event :event/name name keyword))
         tx-id (-> event :aggregate/tx-id)]
     (when-let [handler (projector/handler-for-event projector event)]
-      (let [projection-id (projector/projection-id projector handler event)
-            transactor (-> system :transactor)
-            bucket (projection-bucket system (-> projector :id) projection-id)]
-        (transact transactor bucket
-                  (partial projection-transaction-update-function
-                           system projector handler projection-id tx-id event))))))
+      (let [projection-ids [(projector/projection-id projector handler event)]
+            transactor (-> system :transactor)]
+        (doseq [projection-id projection-ids]
+          (let [bucket (projection-bucket system (-> projector :id) projection-id)]
+            (transact transactor bucket
+                      (partial projection-transaction-update-function
+                               system projector handler projection-id tx-id event))))))))
 
 
 (defn- projectors-event-handler [system event]
