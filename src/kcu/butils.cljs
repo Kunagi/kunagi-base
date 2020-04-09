@@ -63,22 +63,28 @@
            (callback))))))
 
 
+(defonce DURABLE-RATOMS (atom {}))
+
+
 (defn durable-ratom
   ([k]
    (durable-ratom k nil))
   ([k default-value]
-   (let [value (get-from-local-storage k)
-         ratom (r/atom (or value default-value))]
-     (add-watch ratom ::durable-ratom
-                (fn [_ _ old-val new-val]
-                  (when (not= old-val new-val)
-                    (set-to-local-storage k new-val))))
-     (subscribe-to-local-storage
-      k (fn [new-val]
-          (when-not (= new-val @ratom)
-            (tap> [:inf ::durable-ratom-changed-in-local-storage k])
-            (reset! ratom new-val))))
-     ratom)))
+   (if-let [ratom (get @DURABLE-RATOMS k)]
+     ratom
+     (let [value (get-from-local-storage k)
+           ratom (r/atom (or value default-value))]
+       (add-watch ratom ::durable-ratom
+                  (fn [_ _ old-val new-val]
+                    (when (not= old-val new-val)
+                      (set-to-local-storage k new-val))))
+       (subscribe-to-local-storage
+        k (fn [new-val]
+            (when-not (= new-val @ratom)
+              (tap> [:inf ::durable-ratom-changed-in-local-storage k])
+              (reset! ratom new-val))))
+       (swap! DURABLE-RATOMS assoc k ratom)
+       ratom))))
 
 
 (defn clear-local-storage []
