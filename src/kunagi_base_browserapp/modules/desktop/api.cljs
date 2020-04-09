@@ -106,56 +106,6 @@
           true)))
 
 
-(defn show-snackbar [db snackbar]
-  (let [snackbar (assoc snackbar :open? true)]
-    (if (get db :desktop/snackbar)
-      (update db :desktop/snackbar-queue #(conj (or % []) snackbar))
-      (do
-        (js/setTimeout #(rf/dispatch [:desktop/close-snackbar])
-                       3000)
-        (assoc db :desktop/snackbar snackbar)))))
-
-
-(defn close-snackbar [db]
-  (js/setTimeout #(rf/dispatch [:desktop/dispose-snackbar])
-                 300)
-  (assoc-in db [:desktop/snackbar :open?] false))
-
-
-(defn dispose-snackbar [db]
-  (let [snackbar-queue (get db :desktop/snackbar-queue)]
-    (if (empty? snackbar-queue)
-      (dissoc db :desktop/snackbar)
-      (let [next-snackbar (first snackbar-queue)
-            snackbar-queue (into [] (rest snackbar-queue))]
-        (js/setTimeout #(rf/dispatch [:desktop/close-snackbar])
-                       3000)
-        (assoc db :desktop/snackbar next-snackbar
-                  :desktop/snackbar-queue snackbar-queue)))))
-
-
-(rf/reg-sub
- :desktop/snackbar
- (fn [db]
-   (-> db :desktop/snackbar)))
-
-
-(rf/reg-event-db
- :desktop/show-snackbar
- (fn [db [_ snackbar]]
-   (show-snackbar db snackbar)))
-
-
-(rf/reg-event-db
- :desktop/close-snackbar
- (fn [db _]
-   (close-snackbar db)))
-
-
-(rf/reg-event-db
- :desktop/dispose-snackbar
- (fn [db _]
-   (dispose-snackbar db)))
 
 
 (rf/reg-sub

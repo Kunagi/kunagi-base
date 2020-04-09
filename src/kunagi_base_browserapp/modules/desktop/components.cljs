@@ -4,6 +4,8 @@
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
 
+   [kcu.mui.snackbars :as snackbars]
+
    [mui-commons.api :refer [<subscribe dispatch!]]
    [mui-commons.components :as muic]
    [mui-commons.theme :as theme]))
@@ -105,13 +107,6 @@
         title]))])
 
 
-(defn Snackbars []
-  [:div.Snackbar
-   (when-let [snackbar (<subscribe [:desktop/snackbar])]
-     [:> mui/Snackbar
-      {:open (-> snackbar :open?)
-       :message (-> snackbar :message)}])])
-
 
 (defn Desktop [{:keys [css
                        font-family
@@ -133,7 +128,7 @@
        [:div
         {:style {:margin-top (when app-bar "84px")}}
         [Errors]
-        [Snackbars]
+        [snackbars/Snackbars]
         [:> mui/Container
          {:max-width container-max-width}
          [muic/ErrorBoundary
