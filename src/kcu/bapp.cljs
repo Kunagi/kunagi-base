@@ -6,6 +6,7 @@
    [reagent.dom :as rdom]
    [reagent.core :as r]
    [re-frame.core :as rf]
+   [re-frame.db :as rf-db]
    [ajax.core :as ajax]
    [taoensso.sente  :as sente]
 
@@ -21,6 +22,54 @@
 
 
 ;; TODO catch uncatched errors
+
+
+;;; re-frame ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(rf/reg-sub :bapp/db (fn [db [_ & path]] (get-in db path)))
+
+
+(defn subscribe [sub]
+  (when-let [signal (rf/subscribe sub)]
+    @signal))
+
+
+(defn update-db [f]
+  (swap! rf-db/app-db f))
+
+
+(defn update-in-db [path f]
+  (swap! rf-db/app-db update-in path f))
+
+
+(defn assoc-in-db [path value]
+  (swap! rf-db/app-db assoc-in path value))
+
+
+(defn reg-sub-f [model-k sub-k f]
+  (rf/reg-sub
+   sub-k
+   (fn [db event]
+     (if-let [model (get db model-k)]
+       (apply f (into [model] (rest event)))))))
+
+
+;;; ajax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn request-edn [url db-k f]
+  (bu/GET-edn url
+              (fn [value error]
+                (when value
+                  (update-in-db [db-k] #(f % value))))))
+
+
+(defn request-edn-for-db [url path-in-db]
+  (bu/GET-edn url
+              (fn [value error]
+                (when value
+                  (assoc-in-db path-in-db value)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
