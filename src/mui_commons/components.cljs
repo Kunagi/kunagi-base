@@ -7,6 +7,7 @@
    ["@material-ui/icons" :as icons]
    ["@material-ui/core/styles" :refer [withStyles]]
 
+   [kcu.config :as config]
    [mui-commons.theme :as theme]
    [mui-commons.api :refer [<subscribe]]
    [clojure.string :as str]))
@@ -344,6 +345,12 @@
      children)]])
 
 
+(defn DataCard
+  [datas]
+  [Card
+   (into [Data] datas)])
+
+
 ;;; DropdownMenu
 
 
@@ -538,3 +545,46 @@
      [:> icons/Close]]]
    [:> mui/DialogContent
     content]])
+
+
+;;; dev mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(def dev-mode? (-> (config/config) :dev-mode?))
+
+
+(defn DevGuard [dev-content]
+  (if dev-mode?
+    dev-content
+    [:div]))
+
+
+(defn DataInspector [& datas]
+  (let [OPEN? (r/atom false)]
+    (fn [& datas]
+      [:div
+       [:> mui/IconButton
+        {:on-click #(reset! OPEN? true)
+         :size :small}
+        [:> icons/Memory]]
+       (when @OPEN?
+        [:> mui/Dialog
+         {:open true
+          :on-close #(reset! OPEN? false)}
+         [:> mui/DialogContent
+          (into [Data] datas)]])])))
+
+
+(defn WithData [data component]
+  (let [component (conj component data)
+        component [ErrorBoundary component]]
+    (if-not dev-mode?
+      component
+      [:div
+       {:style {:position :relative}}
+       component
+       [:div
+        {:style {:position :absolute
+                 :top 0
+                 :right 0}}
+        [DataInspector data]]])))
