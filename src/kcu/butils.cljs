@@ -40,7 +40,7 @@
    url
    {:handler (fn [response]
                (tap> [:dbg ::GET-edn-received url response])
-               (callback response nil))
+               (callback (u/decode-edn response) nil))
     :error-handler (fn [response]
                      (tap> [:wrn ::GET-edn-failed url response])
                      (callback nil response))}))
@@ -51,10 +51,9 @@
    (remote-edn-ratom url nil nil))
   ([url initial-value convert-f]
    (let [ratom (r/atom initial-value)]
-     (GET-edn url (fn [response error]
-                    (when response
-                      (let [value (u/decode-edn response)
-                            value (if convert-f
+     (GET-edn url (fn [value error]
+                    (when value
+                      (let [value (if convert-f
                                     (convert-f value)
                                     value)]
                         (reset! ratom value)))))
