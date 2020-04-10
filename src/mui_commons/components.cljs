@@ -3,6 +3,7 @@
    [cljs.pprint :as pprint]
    [reagent.core :as r]
    [reagent.dom :as rdom]
+   [re-frame.core :as rf]
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
    ["@material-ui/core/styles" :refer [withStyles]]
@@ -550,11 +551,11 @@
 ;;; dev mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(def dev-mode? (-> (config/config) :dev-mode?))
+(defn dev-mode? [] (-> (config/config) :dev-mode?))
 
 
 (defn DevGuard [dev-content]
-  (if dev-mode?
+  (if (dev-mode?)
     dev-content
     [:div]))
 
@@ -578,7 +579,7 @@
 (defn WithData [data component]
   (let [component (conj component data)
         component [ErrorBoundary component]]
-    (if-not dev-mode?
+    (if-not (dev-mode?)
       component
       [:div
        {:style {:position :relative}}
@@ -588,3 +589,9 @@
                  :top 0
                  :right 0}}
         [DataInspector data]]])))
+
+
+(defn WithSubscription [sub component]
+  [WithData
+   @(rf/subscribe sub)
+   component])
