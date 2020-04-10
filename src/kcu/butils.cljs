@@ -2,6 +2,8 @@
   "Browser Utilities"
   (:require
    [reagent.core :as r]
+   [ajax.core :as ajax]
+
    [kcu.utils :as u]))
 
 
@@ -14,6 +16,49 @@
 
 (defn navigate-to [href]
   (set! (.-location js/window) "/sign-out"))
+
+
+(defn combi-ratom [input-ratoms update-f]
+  (let [ratom (r/atom nil)
+        update-ratom (fn []
+                       (reset! ratom (update-f (mapv deref input-ratoms))))]
+    (doseq [input-ratom input-ratoms]
+      (add-watch input-ratom
+                 [::combi-ratom ratom]
+                 (fn [_ _ _ _]
+                   (update-ratom))))
+    (update-ratom)
+    ratom))
+
+
+;;; AJAX ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn GET-edn [url callback]
+  (tap> [:dbg ::GET-edn url])
+  (ajax/GET
+   url
+   {:handler (fn [response]
+               (tap> [:dbg ::GET-edn-received url response])
+               (callback response nil))
+    :error-handler (fn [response]
+                     (tap> [:wrn ::GET-edn-failed url response])
+                     (callback nil response))}))
+
+
+(defn remote-edn-ratom
+  ([url]
+   (remote-edn-ratom url nil nil))
+  ([url initial-value convert-f]
+   (let [ratom (r/atom initial-value)]
+     (GET-edn url (fn [response error]
+                    (when response
+                      (let [value (u/decode-edn response)
+                            value (if convert-f
+                                    (convert-f value)
+                                    value)]
+                        (reset! ratom value)))))
+     ratom)))
 
 
 ;;; localStorage ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
