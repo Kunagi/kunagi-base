@@ -347,7 +347,7 @@
 
 
 (defn DataCard
-  [datas]
+  [& datas]
   [Card
    (into [Data] datas)])
 

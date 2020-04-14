@@ -8,32 +8,30 @@
    [kcu.utils :as u]))
 
 
-(defn TextField [options]
- [:> mui/TextField
-  options])
-;; :value (or (bapp/subscribe checkin-ticket-nummer) "")
-;; :on-change #(bapp/dispatch-reset checkin-ticket-nummer
-;;                                  (-> % .-target .-value))
-;; :on-key-down #(when (= 13 (-> % .-keyCode))
-;;                 (rf/dispatch [:wartsapp/checkin-clicked]))
-;; :error (boolean (-> schlange :checkin-fehler))
-;; :helper-text (-> schlange :checkin-fehler)
+(def DIALOGS (r/atom {}))
 
 
+(defn DialogsContainer []
+  (into
+   [:div.DialogsContainer]
+    ;; [muic/DataCard (-> @DIALOGS vals)]]
+   (-> @DIALOGS vals)))
 
-(defn FormDialog [options])
 
-
-
-(defn engage-dialog-trigger [trigger STATE]
+(defn- engage-dialog-trigger [trigger STATE]
   (when trigger
     (cond
 
+      (= trigger :auto-open)
+      [:span.DialogTrigger]
+
+      ;; react component like [:> Button {} "..."]
       (and (vector? trigger)
            (= :> (first trigger))
            (map? (nth trigger 2)))
       (assoc-in trigger [2 :on-click] #(swap! STATE assoc :open? true))
 
+      ;; reagent component like [Button {} "..."]
       (and (vector? trigger)
            (map? (second trigger)))
       (assoc-in trigger [1 :on-click] #(swap! STATE assoc :open? true))
@@ -48,8 +46,14 @@
   (let [initial-state {:open? false
                        :value ""}
         STATE (r/atom (-> initial-state
+                          (assoc :open? (if (= :auto-open (get-in options [:trigger]))
+                                          true
+                                          false))
                           (assoc :value (get options :value ""))))
-        reset #(reset! STATE initial-state)]
+        reset (fn []
+                (reset! STATE initial-state)
+                (when-let [on-close (get options :on-close)]
+                  (on-close STATE)))]
     (fn [options]
       (let [state @STATE
             blocked? (-> state :blocked?)
@@ -77,9 +81,10 @@
           (when-let [title (-> options :title)]
             [:> mui/DialogTitle title])
           [:> mui/DialogContent
-           ;; [muic/Data state]
+           ;; [muic/DataCard state]
            (when-let [text (-> options :text)]
              [:> mui/DialogContentText text])
+           ;; [muic/DataCard state]
            [:> mui/TextField
             (merge {:auto-focus true
                     :margin :dense
@@ -106,3 +111,21 @@
              :disabled blocked?
              :on-click submit}
             (get options :submit-button-text "Submit")]]]]))))
+
+
+(defn show-editor-dialog [editor]
+  (let [dialog-id (u/current-time-millis)
+        on-close (fn [_STATE]
+                   (u/invoke-later!
+                    1000
+                    #(swap! DIALOGS dissoc dialog-id)))
+        component (case (-> editor :type)
+
+                    :text-1 [TextFieldDialog (-> editor
+                                                 (assoc :trigger :auto-open)
+                                                 (assoc :dialog-id dialog-id)
+                                                 (assoc :on-close on-close))]
+                    (throw (ex-info (str "Unsupported editor type `"
+                                         (-> editor :type) "`.")
+                                    {:editor editor})))]
+    (swap! DIALOGS assoc dialog-id component)))
