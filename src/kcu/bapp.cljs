@@ -50,9 +50,18 @@
 (defn reg-sub-f [model-k sub-k f]
   (rf/reg-sub
    sub-k
-   (fn [db event]
+   (fn [db sub]
      (if-let [model (get db model-k)]
-       (apply f (into [model] (rest event)))))))
+       (apply f (into [model] (rest sub)))))))
+
+
+(defn reg-event-f [model-k event-k f]
+  (rf/reg-event-db
+   event-k
+   (fn [db event]
+     (let [model (get db model-k)
+           model (apply f (into [model] (rest event)))]
+       (assoc db model-k model)))))
 
 
 ;;; ajax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -212,7 +221,9 @@
 
 
 (defn dispatch [command]
-  (system/dispatch-command system command))
+  (if (vector? command)
+    (rf/dispatch command)
+    (system/dispatch-command system command)))
 
 
 ;; FIXME resend subscription requenst when server restarted
