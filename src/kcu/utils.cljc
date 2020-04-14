@@ -147,6 +147,9 @@
     `(assert-entity! ~entity ~req ~opt ~subject)))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defn decode-edn
   [s]
   (when s (read-string s)))
@@ -161,6 +164,9 @@
      (pr-str value))))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defn invoke-later!
   [offset-millis f]
   #?(:cljs (js/setTimeout f offset-millis)
@@ -169,9 +175,18 @@
             (f))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; text ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; storage
+
+(defn humanize-label [x]
+  (when x
+    (cond
+      (simple-keyword? x) (name x)
+      (qualified-keyword? x) (str (namespace x) " " (name x))
+      :else (str x))))
+
+
+;;; storage ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defprotocol Storage
