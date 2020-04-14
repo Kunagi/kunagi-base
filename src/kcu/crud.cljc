@@ -55,7 +55,8 @@
 
 
 (defn- update-entity [db entity]
-  (let [entity (maybe-assoc-id db entity)]
+  (let [entity (maybe-assoc-id db entity)
+        entity (assoc entity :db/modified (u/current-time-millis))]
     (update-in db
                [:entities (get entity :db/id)]
                merge entity)))
@@ -75,7 +76,9 @@
         child (maybe-assoc-id db child)
         child-id (get child :db/id)
         child (assoc child :db/parent parent-id)
-        parent (update parent :db/children #(conj (or % #{}) child-id))]
+        child (assoc child :db/modified (u/current-time-millis))
+        parent (update parent :db/children #(conj (or % #{}) child-id))
+        parent (assoc parent :db/modified (u/current-time-millis))]
     (-> db
         (assoc-in [:entities parent-id] parent)
         (assoc-in [:entities child-id] child))))
