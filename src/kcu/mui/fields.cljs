@@ -14,7 +14,8 @@
 
 
 (defn- field-value [field]
-  (or (get field :value)
+  (or (get field :value-component)
+      (get field :value)
       (when-let [attr (get field :attr)]
         (get (get field :entity) attr))))
 
