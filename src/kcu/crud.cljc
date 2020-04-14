@@ -45,7 +45,23 @@
 
 
 (defn find-entities [db filter-predicate]
-  (->> db :entities (filter filter-predicate)))
+  (->> db :entities vals (filter filter-predicate)))
+
+
+(defn child-entity? [entity]
+  (contains? entity :db/parent))
+
+
+(defn root-entity? [entity]
+  (not (child-entity? entity)))
+
+
+(defn root-entities [db]
+  (find-entities db root-entity?))
+
+
+(defn root-entities-ids [db]
+  (map :db/id (root-entities db)))
 
 
 (defn- maybe-assoc-id [db entity]
