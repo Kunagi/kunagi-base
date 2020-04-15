@@ -339,6 +339,7 @@
 (defn ActionCard
   [options & children]
   [:> mui/Card
+   (select-keys options [:style])
    [:> mui/CardActionArea
     (select-keys options [:href :on-click])
     (into
