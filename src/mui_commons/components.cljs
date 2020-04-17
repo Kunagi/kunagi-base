@@ -68,9 +68,15 @@
                                           (-> line
                                               (str/includes? "react_dom_development.js"))
                                           (-> line
+                                              (str/includes? "reagent.ratom.js"))
+                                          (-> line
+                                              (str/includes? "reagent.dom.js"))
+                                          (-> line
                                               (str/includes? "reagent.impl.component.js")))
                                      "#aaa")}}
-                   line]))
+                   (-> line
+                       (str/replace #"@" " @ ")
+                       (str/replace #"\$" " "))]))
           [:div]
           (-> stack (.split "\n"))))
 
@@ -343,7 +349,8 @@
    [:> mui/CardActionArea
     (select-keys options [:href :on-click])
     (into
-     [:> mui/CardContent]
+     [:> mui/CardContent
+      {:style {:padding (-> options :padding)}}]
      children)]])
 
 
