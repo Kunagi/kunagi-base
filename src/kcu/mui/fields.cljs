@@ -20,16 +20,20 @@
         (get (get field :entity) attr))))
 
 
+(defn FieldLabel [text]
+  [:div.Field__Label
+   {:style {:color (theme/color-primary-main)
+            :text-transform :uppercase
+            :letter-spacing "1px"
+            :font-size "70%"}}
+   text])
+
+
 (defn Field [field]
   [:div.Field
-   {:style {:cursor :pointer}
+   {:style {:cursor (when (-> field :on-click :pointer))}
     :on-click (-> field :on-click)}
-   [:div.Field__Label
-    {:style {:color (theme/color-primary-main)
-             :text-transform :uppercase
-             :letter-spacing "1px"
-             :font-size "70%"}}
-    (field-label field)]
+   [FieldLabel (field-label field)]
    [:div.Field__Value
     (field-value field)]])
 
