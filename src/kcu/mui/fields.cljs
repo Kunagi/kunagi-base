@@ -41,6 +41,7 @@
 (defn- Ref [ref]
   [:> mui/Button
    {:on-click (get ref :on-click)
+    :href (get ref :href)
     :size :small
     :variant :contained
     :style {:text-transform :none}}
