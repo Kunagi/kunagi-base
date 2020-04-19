@@ -14,6 +14,9 @@
 #_(macroexpand-1 '(do-once :a :b))
 
 
+;;; maps ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defn deep-merge [& maps]
   (apply merge-with (fn [& args]
                       (if (every? map? args)
@@ -22,28 +25,15 @@
          maps))
 
 
-(defn random-uuid []
-  #?(:cljs (cljs.core/random-uuid)
-     :clj  (java.util.UUID/randomUUID)))
-
-
-(defn random-uuid-string []
-  (str #?(:cljs (random-uuid)
-          :clj  (java.util.UUID/randomUUID))))
-
-
-(defn current-time-millis []
-  #?(:cljs (.getTime (js/Date.))
-     :clj  (System/currentTimeMillis)))
-
-
-(defn as-optional-fn
-  "Coerce `function-or-value` to function if not nil."
-  [function-or-value]
-  (when function-or-value
-    (if (fn? function-or-value)
-      function-or-value
-      (constantly function-or-value))))
+(defn assoc-missing
+  [m & key-value-fs]
+  (reduce (fn [m [k f]]
+            (if (contains? m k)
+              m
+              (assoc m k (if (fn? f)
+                           (f m)
+                           f))))
+          m key-value-fs))
 
 
 (defn getm
@@ -68,6 +58,42 @@
                         :k k
                         :v v
                         :spec spec}))))))
+
+
+;;; uuid ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn random-uuid []
+  #?(:cljs (cljs.core/random-uuid)
+     :clj  (java.util.UUID/randomUUID)))
+
+
+(defn random-uuid-string []
+  (str #?(:cljs (random-uuid)
+          :clj  (java.util.UUID/randomUUID))))
+
+
+;;; time ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn current-time-millis []
+  #?(:cljs (.getTime (js/Date.))
+     :clj  (System/currentTimeMillis)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn as-optional-fn
+  "Coerce `function-or-value` to function if not nil."
+  [function-or-value]
+  (when function-or-value
+    (if (fn? function-or-value)
+      function-or-value
+      (constantly function-or-value))))
+
+
+;;; assertions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn assert-spec
