@@ -16,51 +16,42 @@
 (defmulti editor-field (fn [options] (or (get options :type) :text-1)))
 
 
-(defmethod editor-field :text-1
+(defn- mui-text-field-editor-field
   [{:as options
-    :keys [value on-change submit-f disabled?
-           error-text]}]
-  (let [id (str "editor-field-" (random-uuid))]
-    [(fn [] (-> (js/document.getElementById id) .-value))
-     [:> mui/TextField
-      {:id id
-       :auto-focus true
-       :margin :dense
-       :full-width true
-       :default-value value
-       :on-key-down #(when (= 13 (-> % .-keyCode))
-                       (submit-f (-> % .-target .-value)))
-       :disabled disabled?
-       :error (boolean error-text)
-       :helper-text error-text}]]))
-
-
-(defmethod editor-field :code
-  [{:as options
-    :keys [value on-change submit-f disabled?
-           error-text]}]
-  (js/console.log "CHANGED" options)
+    :keys [value submit-f disabled?
+           error-text]}
+   special-options]
   (let [id (str "editor-field-" (random-uuid))]
     [(fn [] (-> (js/document.getElementById id) .-value))
      (muic/with-css
-       {"& .MuiInputBase-input" {:font-family :monospace
-                                 :min-width "80ch"}}
+       {"& textarea" {:font-family (when (get special-options :monospace?) :mono)}}
        [:> mui/TextField
-        {:id id
-         :multiline true
-         :rows 20
-         :auto-focus true
-         :margin :dense
-         :full-width true
-         :default-value value
-         ;; :on-change #(on-change (-> % .-target .-value))
-         ;; :on-key-down #(when (= 13 (-> % .-keyCode))
-         ;;                 (submit-f)) ; FIXME Ctrl+Enter
-         :disabled disabled?
-         :error (boolean error-text)
-         :helper-text error-text
-         :style {:font-family :monospace}}])]))
+        (merge
+         {:id id
+          :auto-focus true
+          :margin :dense
+          :full-width true
+          :default-value value
+          :on-key-down (when-not (-> special-options :rows)
+                         #(when (= 13 (-> % .-keyCode))
+                            (submit-f (-> % .-target .-value))))
+          :disabled disabled?
+          :error (boolean error-text)
+          :helper-text error-text}
+         (dissoc special-options :monospace?))])]))
 
+
+(defmethod editor-field :text-1
+  [options]
+  (mui-text-field-editor-field options {}))
+
+
+(defmethod editor-field :code
+  [options]
+  (mui-text-field-editor-field
+   options {:multiline true
+            :rows 20
+            :monospace? true}))
 
 ;;; Editor Dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
