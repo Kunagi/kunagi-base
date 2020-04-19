@@ -8,16 +8,45 @@
 
 
 
-(defn- field-label [field]
-  (or (get field :label)
-      (u/humanize-label (get field :attr))))
+;;; FieldValue ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn- field-value [field]
-  (or (get field :value-component)
-      (get field :value)
+(defn- value [field]
+  (or (get field :value)
       (when-let [attr (get field :attr)]
-        (get (get field :entity) attr))))
+        (str (get (get field :entity) attr)))))
+
+
+(defmulti FieldValue (fn [field] (get field :type :text)))
+
+
+(defmethod FieldValue :text [field]
+  [:div (value field)])
+
+
+(defn- Ref [ref]
+  [:> mui/Button
+   {:on-click (get ref :on-click)
+    :size :small
+    :variant :contained
+    :style {:text-transform :none}}
+   (or (get ref :text)
+       (str "? " ref))])
+
+
+(defmethod FieldValue :ref-n [field]
+  [muic/Inline
+   {:items (value field)
+    :template [Ref]}])
+
+
+;;; FieldLabel ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn- field-label [field]
+  (or (or (get field :label)
+          (u/humanize-label (get field :attr)))
+      "?missing :label"))
 
 
 (defn FieldLabel [text]
@@ -29,14 +58,21 @@
    text])
 
 
+;;; Field ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defn Field [field]
   [:div.Field
    {:style {:cursor (when (-> field :on-click :pointer))}
     :on-click (-> field :on-click)}
    [FieldLabel (field-label field)]
    [:div.Field__Value
-    (field-value field)]])
+    {:style {:min-height "24px"}}
+    (or (get field :value-component)
+        [FieldValue field])]])
 
+
+;;; Fieldset ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn Fieldset [options & components]
