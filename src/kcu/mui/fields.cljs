@@ -14,14 +14,26 @@
 (defn- value [field]
   (or (get field :value)
       (when-let [attr (get field :attr)]
-        (str (get (get field :entity) attr)))))
+        (get (get field :entity) attr))))
 
 
 (defmulti FieldValue (fn [field] (get field :type :text)))
 
 
 (defmethod FieldValue :text [field]
-  [:div (value field)])
+  [:div (str (value field))])
+
+
+(defmethod FieldValue :text-1 [field]
+  [:div (str (value field))])
+
+
+(defmethod FieldValue :text-n [field]
+  [:div (str (value field))])
+
+
+(defmethod FieldValue :edn [field]
+  [muic/Data (value field)])
 
 
 (defn- Ref [ref]
@@ -63,7 +75,7 @@
 
 (defn Field [field]
   [:div.Field
-   {:style {:cursor (when (-> field :on-click :pointer))}
+   {:style {:cursor (when (-> field :on-click) :pointer)}
     :on-click (-> field :on-click)}
    [FieldLabel (field-label field)]
    [:div.Field__Value
