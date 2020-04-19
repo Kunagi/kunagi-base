@@ -46,6 +46,13 @@
   (mui-text-field-editor-field options {}))
 
 
+(defmethod editor-field :text-n
+  [options]
+  (mui-text-field-editor-field
+   options {:multiline true
+            :rows 20}))
+
+
 (defmethod editor-field :code
   [options]
   (mui-text-field-editor-field

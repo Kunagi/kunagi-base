@@ -29,7 +29,9 @@
 
 
 (defmethod FieldValue :text-n [field]
-  [:div (str (value field))])
+  [:div
+   {:style {:white-space :pre-wrap}}
+   (str (value field))])
 
 
 (defmethod FieldValue :edn [field]
