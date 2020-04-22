@@ -16,7 +16,7 @@
 ;;; Devcard ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn Devcard [options component]
+(defn Devcard [options]
   [muic/Card
    [muic/Stack-1
     [:div
@@ -29,7 +29,8 @@
               :flex-wrap :wrap}}
      [:div
       {:style {:border "1px dotted #9f9"}}
-      (-> options :component)]]
+      [muic/ErrorBoundary
+       (-> options :component)]]]
     (when-let [code (-> options :code)]
       [muic/Card
        {:style {:background-color "#00363a"
