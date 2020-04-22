@@ -3,6 +3,7 @@
   (:require
    [reagent.core :as r]
    [ajax.core :as ajax]
+   [cemerick.url :as camerick-url]
 
    [kcu.utils :as u]))
 
@@ -29,6 +30,12 @@
                    (update-ratom))))
     (update-ratom)
     ratom))
+
+
+;;; URLs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(def url-encode camerick-url/url-encode)
 
 
 ;;; AJAX ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

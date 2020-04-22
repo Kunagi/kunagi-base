@@ -8,6 +8,7 @@
    ["@material-ui/icons" :as icons]
    ["@material-ui/core/styles" :refer [withStyles]]
 
+   [kcu.devcards :refer [devcard]]
    [kcu.config :as config]
    [mui-commons.theme :as theme]
    [mui-commons.api :refer [<subscribe]]
@@ -52,6 +53,10 @@
                     :overflow :auto}}
            (with-out-str (pprint/pprint data))])
         datas)))
+
+(devcard
+ ::Data
+ [Data {:this "is" :some [:data 42]}])
 
 
 (defn None []
@@ -184,12 +189,17 @@
    [:> mui/Link
     (deep-merge
      {:target :_blank
-      :rel :noopener
-      :color :inherit}
+      :rel :noopener}
      options)]
    (if (empty? contents)
      [(get options :href)]
      contents)))
+
+(devcard
+ ::ForeignLink
+ [ForeignLink
+  {:href "https://frankenburg.software"}
+  "frankenburg.software"])
 
 
 (defn args-as-options [args]
@@ -272,6 +282,14 @@
                            :grid-gap spacing}})]
      elements)))
 
+(devcard
+ ::Stack
+ [Stack
+  [:div {:style {:background-color "#f06292" :padding 20}} "A"]
+  [:div {:style {:background-color "#4fc3f7" :padding 20}} "B"]
+  [:div {:style {:background-color "#ffd54f" :padding 20}} "C"]])
+
+
 (defn Stack-1 [& elements]
   (Stack {:spacing (theme/spacing 1)
           :elements elements}))
@@ -304,6 +322,14 @@
          {:style {:margin (str spacing "px")}}
          element])
       elements))))
+
+
+(devcard
+ ::Inline
+ [Inline
+  [:div {:style {:background-color "#f06292" :padding 20}} "A"]
+  [:div {:style {:background-color "#4fc3f7" :padding 20}} "B"]
+  [:div {:style {:background-color "#ffd54f" :padding 20}} "C"]])
 
 
 (defn TitledInline [& optmap+elements]
