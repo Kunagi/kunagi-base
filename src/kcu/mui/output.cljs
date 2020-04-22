@@ -89,4 +89,11 @@
 
 (defn output [{:as options :keys [type value]}]
   (case type
+    :text (Text options value)
+    :text-1 (Text options value)
+    :text-n (Text-n options value)
+    :code (Code options value)
+    :edn (Edn options value)
+    :ref (RefButton options value)
+    :ref-n (RefsButtons options value)
     (Edn options value)))
