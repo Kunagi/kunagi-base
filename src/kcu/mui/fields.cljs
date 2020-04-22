@@ -3,6 +3,7 @@
    ["@material-ui/core" :as mui]
 
    [kcu.utils :as u]
+   [kcu.mui.output :as output]
    [mui-commons.components :as muic]
    [mui-commons.theme :as theme]))
 
@@ -21,7 +22,7 @@
 
 
 (defmethod FieldValue :text [field]
-  [:div (str (value field))])
+  (output/Text nil (value field)))
 
 
 (defmethod FieldValue :text-1 [field]

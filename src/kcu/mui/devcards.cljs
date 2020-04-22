@@ -19,7 +19,11 @@
 (defn Devcard [options component]
   [muic/Card
    [muic/Stack-1
-    (-> options :title str)
+    [:div
+     {:style {:color (theme/color-primary-main)
+              :font-weight :bold
+              :letter-spacing "1px"}}
+     (-> options :title str)]
     [:div
      {:style {:display :flex
               :flex-wrap :wrap}}
@@ -27,7 +31,10 @@
       {:style {:border "1px dotted #9f9"}}
       (-> options :component)]]
     (when-let [code (-> options :code)]
-      [muic/Data code])]])
+      [muic/Card
+       {:style {:background-color "#00363a"
+                :color :white}}
+       [muic/Data code]])]])
 
 
 (defn DevcardsGroup [group]
