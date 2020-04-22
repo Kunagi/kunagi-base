@@ -10,21 +10,27 @@
    [mui-commons.theme :as theme]))
 
 
+
+(defn TableHead [options]
+  [:> mui/TableHead
+   [:> mui/TableRow
+    (for [col (get options :cols)]
+      (let [k (get col :key)
+            label (or (get col :label)
+                      (str k))]
+        ^{:key k}
+        [(r/adapt-react-class mui/TableCell)
+         {:style {:color (theme/color-primary-main)}}
+         label]))]])
+
+
 (defn Table
   [options records]
   (let [cols (get options :cols)]
     [:div.Table
      [:> mui/Table
       {:size :small}
-      [:> mui/TableHead
-       [:> mui/TableRow
-        (for [col cols]
-          (let [k (get col :key)
-                label (get col :label)]
-            ^{:key k}
-            [(r/adapt-react-class mui/TableCell)
-             {:style {:color (theme/color-primary-main)}}
-             label]))]]
+      [TableHead options]
       [:> mui/TableBody
        (for [record records]
          ^{:key (-> record)}
@@ -47,9 +53,9 @@
  ::Table
  [Table
   {:cols [{:key :name
-           :label "Name"}
-          {:key :age
-           :label "Age"}
+           :label "Name"
+           :type :text}
+          {:key :age}
           {:key :data
            :label "Data"
            :type :edn}]}
