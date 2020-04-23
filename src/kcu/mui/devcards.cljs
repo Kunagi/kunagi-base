@@ -51,7 +51,8 @@
            [Devcard devcard]])
         (->> (devcards/devcards)
              (filter #(= group (get % :ns)))
-             (sort-by :id)))))
+             (sort-by :id)
+             reverse))))
 
 
 ;;; Navigations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
