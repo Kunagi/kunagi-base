@@ -56,7 +56,7 @@
 ;;; QueryingTable ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn QueryingTable
+(defn DbTable
   [options db]
   (let [STATE (r/atom nil)
         submit (fn [s]
@@ -71,18 +71,21 @@
     (fn [options db]
       (let [{:keys [ex entities]} @STATE]
         [muic/Stack-1
-         [:> mui/TextField
-          {:default-value "[?e]"
-           :on-key-down #(when (= 13 (-> % .-keyCode))
-                           (submit (-> % .-target .-value)))}]
+         [muic/Inline
+          [:> mui/TextField
+           {:default-value "[?e]"
+            :on-key-down #(when (= 13 (-> % .-keyCode))
+                            (submit (-> % .-target .-value)))}]
+          [:> mui/Button
+           "EDIT"]]
          (when ex
            [muic/ExceptionCard ex])
          (when entities
            [EntitiesTable {} entities])]))))
 
 (devcard
- ::QueryingTable
- [QueryingTable
+ ::DbTable
+ [DbTable
   {}
   (-> (d/empty-db {})
       (d/db-with
