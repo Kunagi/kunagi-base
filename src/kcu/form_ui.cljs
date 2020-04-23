@@ -66,7 +66,7 @@
 (def DIALOGS (r/atom {}))
 
 
-(defn DialogsContainer []
+(defn CommonDialogsContainer []
   (into
    [:div.DialogsContainer]
    ;; [muic/DataCard (-> @DIALOGS vals)]]

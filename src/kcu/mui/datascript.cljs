@@ -5,6 +5,7 @@
    ["@material-ui/core" :as mui]
 
    [kcu.utils :as u]
+   [kcu.form-ui :as form-ui]
    [kcu.mui.output :as output]
    [kcu.devcards :refer [devcard]]
    [mui-commons.components :as muic]
@@ -59,25 +60,32 @@
 (defn DbTable
   [options db]
   (let [STATE (r/atom nil)
+        DB (r/atom db)
         submit (fn [s]
                  (try
                    (->> (str "[" s "]")
                         u/decode-edn
-                        (apply q-entities db)
+                        (apply q-entities @DB)
                         (assoc {} :entities)
                         (reset! STATE))
                    (catch :default ex
                      (reset! STATE {:ex ex}))))]
-    (fn [options db]
+    (fn [options _db]
       (let [{:keys [ex entities]} @STATE]
         [muic/Stack-1
-         [muic/Inline
-          [:> mui/TextField
-           {:default-value "[?e]"
-            :on-key-down #(when (= 13 (-> % .-keyCode))
-                            (submit (-> % .-target .-value)))}]
+         [:div
+          {:style {:display :grid
+                   :grid-template-columns "auto 130px"
+                   :min-width "400px"}}
+          [:div
+           [:> mui/TextField
+            {:default-value "[?e]"
+             :on-key-down #(when (= 13 (-> % .-keyCode))
+                             (submit (-> % .-target .-value)))}]]
           [:> mui/Button
-           "EDIT"]]
+           {:on-click #(form-ui/show-editor-dialog
+                        {:type :code})}
+           "Transact..."]]
          (when ex
            [muic/ExceptionCard ex])
          (when entities

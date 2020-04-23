@@ -5,6 +5,7 @@
    ["@material-ui/icons" :as icons]
 
    [kcu.mui.snackbars :as snackbars]
+   [kcu.form-ui :as form-ui]
 
    [mui-commons.api :refer [<subscribe dispatch!]]
    [mui-commons.components :as muic]
@@ -134,4 +135,5 @@
          [muic/ErrorBoundary
           (or workarea-guard
               [WorkareaSwitch])]]]
-       footer])]])
+       footer
+       [form-ui/CommonDialogsContainer]])]])
