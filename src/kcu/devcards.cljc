@@ -23,7 +23,7 @@
 (defmacro devcard [id component]
   (let [title (str (first component))
         code component]
-    (prn "\n\n" &env "\n\n")
+    ;; (prn "\n\n" &env "\n\n")
     (when-not (= :release (:shadow.build/mode &env))
       `(register
         {:id ~id
