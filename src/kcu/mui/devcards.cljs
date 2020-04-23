@@ -23,7 +23,12 @@
      {:style {:color (theme/color-primary-main)
               :font-weight :bold
               :letter-spacing "1px"}}
-     (-> options :title str)]
+     (-> options :name str)
+     " "
+     [:span
+      {:style {:font-weight :normal
+               :color "#666"}}
+      (-> options :ns name str)]]
     [:div
      {:style {:display :flex
               :flex-wrap :wrap}}
