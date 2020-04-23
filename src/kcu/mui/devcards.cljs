@@ -50,7 +50,8 @@
           [muic/ErrorBoundary
            [Devcard devcard]])
         (->> (devcards/devcards)
-             (filter #(= group (get % :ns)))))))
+             (filter #(= group (get % :ns)))
+             (sort-by :id)))))
 
 
 ;;; Navigations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
