@@ -5,7 +5,7 @@
    ["@material-ui/icons" :as icons]
 
    [kcu.mui.snackbars :as snackbars]
-   [kcu.form-ui :as form-ui]
+   [kcu.mui.input :as input]
 
    [mui-commons.api :refer [<subscribe dispatch!]]
    [mui-commons.components :as muic]
@@ -136,4 +136,4 @@
           (or workarea-guard
               [WorkareaSwitch])]]]
        footer
-       [form-ui/CommonDialogsContainer]])]])
+       [input/DialogsContainer]])]])

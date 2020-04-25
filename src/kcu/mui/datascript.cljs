@@ -5,7 +5,7 @@
    ["@material-ui/core" :as mui]
 
    [kcu.utils :as u]
-   [kcu.form-ui :as form-ui]
+   [kcu.mui.input :as input]
    [kcu.mui.output :as output]
    [kcu.devcards :refer [devcard]]
    [mui-commons.components :as muic]
@@ -83,7 +83,7 @@
              :on-key-down #(when (= 13 (-> % .-keyCode))
                              (submit (-> % .-target .-value)))}]]
           [:> mui/Button
-           {:on-click #(form-ui/show-editor-dialog
+           {:on-click #(input/show-dialog
                         {:type :code})}
            "Transact..."]]
          (when ex

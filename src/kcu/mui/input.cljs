@@ -1,72 +1,128 @@
-(ns kcu.form-ui
+(ns kcu.mui.input
   (:require
    [reagent.core :as r]
    ["@material-ui/core" :as mui]
    ["@material-ui/icons" :as icons]
 
    [mui-commons.components :as muic]
-   [kcu.utils :as u]))
+   [kcu.devcards :refer [devcard]]
+   [kcu.utils :as u]
+   [kcu.mui.table :as table]))
 
 
+;;; TextField ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;;; Editor Field ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(defmulti editor-field (fn [options] (or (get options :type) :text-1)))
-
-
-(defn- mui-text-field-editor-field
+(defn text
   [{:as options
     :keys [value submit-f disabled?
-           error-text]}
+           value-field-id error-text]}
    special-options]
-  (let [id (str "editor-field-" (random-uuid))]
-    [(fn [] (-> (js/document.getElementById id) .-value))
-     (muic/with-css
-       {"& textarea" {:font-family (when (get special-options :monospace?) :mono)}}
-       [:> mui/TextField
-        (merge
-         {:id id
-          :auto-focus true
-          :margin :dense
-          :full-width true
-          :default-value value
-          :on-key-down (when-not (-> special-options :rows)
-                         #(when (= 13 (-> % .-keyCode))
-                            (submit-f (-> % .-target .-value))))
-          :disabled disabled?
-          :error (boolean error-text)
-          :helper-text error-text}
-         (dissoc special-options :monospace?))])]))
+  [(fn [] (-> (js/document.getElementById value-field-id) .-value))
+   (muic/with-css
+     {"& textarea" {:font-family (when (get special-options :monospace?)
+                                   :monospace)}}
+     [:> mui/TextField
+      (merge
+       {:id value-field-id
+        :auto-focus true
+        :margin :dense
+        :full-width true
+        :default-value value
+        :on-key-down (when-not (-> special-options :rows)
+                       #(when (= 13 (-> % .-keyCode))
+                          (submit-f (-> % .-target .-value))))
+        :disabled disabled?
+        :error (boolean error-text)
+        :helper-text error-text}
+       (dissoc special-options :monospace?))])])
 
 
-(defmethod editor-field :text-1
+
+;;; Select-1 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn select-1
+  [{:as options
+    :keys [value options-value-key options-columns options]}]
+  (let [x nil]
+    [(fn [] "FIXME")
+     [table/Table
+      {:cols (map (fn [col]
+                    (-> col))
+                  options-columns)}
+      options]]))
+
+
+;;; dispatcher ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn field
   [options]
-  (mui-text-field-editor-field options {}))
+  (case (get options :type)
+
+    :text-n (text options
+                  {:multiline true
+                   :rows 20})
+
+    :text-1 (text options {})
+
+    :code (text options
+                {:multiline true
+                 :rows 20
+                 :monospace? true})
+
+    :select-1 (select-1 options)
+
+    (text options {})))
 
 
-(defmethod editor-field :text-n
-  [options]
-  (mui-text-field-editor-field
-   options {:multiline true
-            :rows 20}))
+(defn- DevcardEditorComponent [editor]
+  (let [[_getter component] (field editor)]
+    component))
 
 
-(defmethod editor-field :code
-  [options]
-  (mui-text-field-editor-field
-   options {:multiline true
-            :rows 20
-            :monospace? true}))
+(devcard
+ ::select-1
+ [DevcardEditorComponent {:type :select-1
+                          :value :witek
+                          :options-value-key :id
+                          :options-columns [{:label "Name"
+                                             :key :name
+                                             :type :text-1}
+                                            {:label "Age"
+                                             :key :age}]
+                          :options [{:id :kacper
+                                     :name "Kacper"
+                                     :age 37}
+                                    {:id :witek
+                                     :name "Witek"
+                                     :age 40}]}])
 
-;;; Editor Dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(devcard
+ ::text-1
+ [DevcardEditorComponent {:type :text-1
+                          :value "Hello World"}])
+
+(devcard
+ ::text-n
+ [DevcardEditorComponent {:type :text-n
+                          :value "Hello\nWorld"}])
+
+(devcard
+ ::code
+ [DevcardEditorComponent {:type :code
+                          :value "{:hello \"World\"}"}])
+
+
+;;; Dialogs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (def DIALOGS (r/atom {}))
 
 
-(defn CommonDialogsContainer []
+(defn DialogsContainer []
   (into
    [:div.DialogsContainer]
    ;; [muic/DataCard (-> @DIALOGS vals)]]
@@ -105,6 +161,9 @@
                                           true
                                           false))
                           (assoc :value (get options :value ""))))
+        value-field-id (str "editor-dialog-field-" (random-uuid))
+        value-getter (fn []
+                       (-> (js/document.getElementById value-field-id) .-value))
         reset (fn []
                 (reset! STATE initial-state)
                 (when-let [on-close (get options :on-close)]
@@ -123,9 +182,10 @@
       (let [state @STATE
             blocked? (-> state :blocked?)
             error-text (-> state :error-text)
-            [value-getter Field] (editor-field
+            [_alue-getter Field] (field
                                   {:type (-> options :type)
                                    :value (-> options :value)
+                                   :value-field-id value-field-id
                                    ;; :on-change #(swap! STATE assoc :value %)
                                    :submit-f submit
                                    :disabled? blocked?})]
@@ -172,7 +232,7 @@
             (get options :submit-button-text "Submit")]]]]))))
 
 
-(defn show-editor-dialog [editor]
+(defn show-dialog [editor]
   (let [dialog-id (u/current-time-millis)
         on-close (fn [_STATE]
                    (u/invoke-later!
@@ -183,3 +243,12 @@
                                     (assoc :dialog-id dialog-id)
                                     (assoc :on-close on-close))]]
     (swap! DIALOGS assoc dialog-id component)))
+
+
+(devcard
+ ::dialogs
+ [muic/Inline
+  [:> mui/Button
+   {:on-click #(show-dialog
+                {})}
+   "Dialog"]])
