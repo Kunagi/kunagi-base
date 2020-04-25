@@ -24,29 +24,41 @@
          label]))]])
 
 
+(defn record-cell [options record col]
+  (let [k (get col :key)
+        value (get record k)
+        value-type (get col :type)]
+    ^{:key k}
+    [(r/adapt-react-class mui/TableCell)
+     (output/output
+      {:type value-type
+       :value value})]))
+
+
+(defn record-row [options record]
+  ^{:key (-> record)}
+  [(r/adapt-react-class mui/TableRow)
+   {:hover true
+    :on-click (when-let [on-click (get options :on-click)]
+                #(on-click {:record record}))}
+   (for [col (get options :cols)]
+     (record-cell options record col))])
+
+
 (defn Table
   [options records]
-  (let [cols (get options :cols)]
+  (let [cols (get options :cols)
+        selection-mode (get options :selection-mode)]
+
     [:div.Table
      [:> mui/Table
       {:size :small}
+
       [TableHead options]
+
       [:> mui/TableBody
        (for [record records]
-         ^{:key (-> record)}
-         [(r/adapt-react-class mui/TableRow)
-          {:hover true
-           :on-click (when-let [on-click (get options :on-click)]
-                       #(on-click {:record record}))}
-          (for [col cols]
-            (let [k (get col :key)
-                  value (get record k)
-                  value-type (get col :type)]
-              ^{:key k}
-              [(r/adapt-react-class mui/TableCell)
-               (output/output
-                {:type value-type
-                 :value value})]))])]]]))
+         (record-row options record))]]]))
 
 
 (devcard
