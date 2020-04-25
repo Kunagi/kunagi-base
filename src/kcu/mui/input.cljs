@@ -13,107 +13,102 @@
 ;;; TextField ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn text
+(defn Text
   [{:as options
     :keys [value submit-f disabled?
            value-field-id error-text]}
    special-options]
-  [(fn [] (-> (js/document.getElementById value-field-id) .-value))
-   (muic/with-css
-     {"& textarea" {:font-family (when (get special-options :monospace?)
-                                   :monospace)}}
-     [:> mui/TextField
-      (merge
-       {:id value-field-id
-        :auto-focus true
-        :margin :dense
-        :full-width true
-        :default-value value
-        :on-key-down (when-not (-> special-options :rows)
-                       #(when (= 13 (-> % .-keyCode))
-                          (submit-f (-> % .-target .-value))))
-        :disabled disabled?
-        :error (boolean error-text)
-        :helper-text error-text}
-       (dissoc special-options :monospace?))])])
+  (muic/with-css
+    {"& textarea" {:font-family (when (get special-options :monospace?)
+                                  :monospace)}}
+    [:> mui/TextField
+     (merge
+      {:id value-field-id
+       :auto-focus true
+       :margin :dense
+       :full-width true
+       :default-value value
+       :on-key-down (when-not (-> special-options :rows)
+                      #(when (= 13 (-> % .-keyCode))
+                         (submit-f (-> % .-target .-value))))
+       :disabled disabled?
+       :error (boolean error-text)
+       :helper-text error-text}
+      (dissoc special-options :monospace?))]))
 
 
 
 ;;; Select-1 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn select-1
+(defn Select-1
   [{:as options
     :keys [value options-value-key options-columns options]}]
   (let [x nil]
-    [(fn [] "FIXME")
-     [table/Table
-      {:cols (map (fn [col]
-                    (-> col))
-                  options-columns)}
-      options]]))
+   [table/Table
+    {:cols (map (fn [col]
+                  (-> col))
+                options-columns)}
+    options]))
 
 
 ;;; dispatcher ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn field
+(defn Field
   [options]
   (case (get options :type)
 
-    :text-n (text options
+    :text-n (Text options
                   {:multiline true
                    :rows 20})
 
-    :text-1 (text options {})
+    :text-1 (Text options {})
 
-    :code (text options
+    :code (Text options
                 {:multiline true
                  :rows 20
                  :monospace? true})
 
-    :select-1 (select-1 options)
+    :select-1 (Select-1 options)
 
-    (text options {})))
+    (Text options {})))
 
 
-(defn- DevcardEditorComponent [editor]
-  (let [[_getter component] (field editor)]
-    component))
 
 
 (devcard
  ::select-1
- [DevcardEditorComponent {:type :select-1
-                          :value :witek
-                          :options-value-key :id
-                          :options-columns [{:label "Name"
-                                             :key :name
-                                             :type :text-1}
-                                            {:label "Age"
-                                             :key :age}]
-                          :options [{:id :kacper
-                                     :name "Kacper"
-                                     :age 37}
-                                    {:id :witek
-                                     :name "Witek"
-                                     :age 40}]}])
+ (Field {:type :select-1
+         :value :witek
+         :options-value-key :id
+         :options-columns [{:label "Name"
+                            :key :name
+                            :type :text-1}
+                           {:label "Age"
+                            :key :age}]
+         :options [{:id :kacper
+                    :name "Kacper"
+                    :age 37}
+                   {:id :witek
+                    :name "Witek"
+                    :age 40}]}))
 
 
 (devcard
  ::text-1
- [DevcardEditorComponent {:type :text-1
-                          :value "Hello World"}])
+ (Field {:type :text-1
+         :value "Hello World"}))
 
 (devcard
  ::text-n
- [DevcardEditorComponent {:type :text-n
-                          :value "Hello\nWorld"}])
+ (Field {:type :text-n
+         :value "Hello\nWorld"}))
 
 (devcard
  ::code
- [DevcardEditorComponent {:type :code
-                          :value "{:hello \"World\"}"}])
+ (Field {:type :code
+         :value "{:hello \"World\"}"}))
 
 
 ;;; Dialogs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -182,13 +177,13 @@
       (let [state @STATE
             blocked? (-> state :blocked?)
             error-text (-> state :error-text)
-            [_alue-getter Field] (field
-                                  {:type (-> options :type)
-                                   :value (-> options :value)
-                                   :value-field-id value-field-id
-                                   ;; :on-change #(swap! STATE assoc :value %)
-                                   :submit-f submit
-                                   :disabled? blocked?})]
+            Field (Field
+                   {:type (-> options :type)
+                    :value (-> options :value)
+                    :value-field-id value-field-id
+                    ;; :on-change #(swap! STATE assoc :value %)
+                    :submit-f submit
+                    :disabled? blocked?})]
         [:div
          (when-let [trigger (or (engage-dialog-trigger (-> options :trigger)
                                                        STATE)
@@ -248,7 +243,24 @@
 (devcard
  ::dialogs
  [muic/Inline
+
   [:> mui/Button
    {:on-click #(show-dialog
-                {})}
-   "Dialog"]])
+                {:type :text-1
+                 :value "text-1"
+                 :on-submit (fn [] (js/console.log) true)})}
+   "Text-1"]
+
+  [:> mui/Button
+   {:on-click #(show-dialog
+                {:type :text-n
+                 :value "multiline\ntext"
+                 :on-submit (fn [] (js/console.log) true)})}
+   "Text-n"]
+
+  [:> mui/Button
+   {:on-click #(show-dialog
+                {:type :code
+                 :value "{:data here}"
+                 :on-submit (fn [] (js/console.log) true)})}
+   "Code"]])
