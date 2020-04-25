@@ -14,6 +14,8 @@
 (defn TableHead [options]
   [:> mui/TableHead
    [:> mui/TableRow
+    (when (get options :selection-mode)
+      [:> mui/TableCell])
     (for [col (get options :cols)]
       (let [k (get col :key)
             label (or (get col :label)
@@ -35,36 +37,112 @@
        :value value})]))
 
 
-(defn record-row [options record]
-  ^{:key (-> record)}
-  [(r/adapt-react-class mui/TableRow)
-   {:hover true
-    :on-click (when-let [on-click (get options :on-click)]
-                #(on-click {:record record}))}
-   (for [col (get options :cols)]
-     (record-cell options record col))])
+(defn record-id [options record]
+  (get record :id))
+
+(defn- toggle-selection [STATE options record]
+  (swap! STATE
+         (fn [state]
+           (let [selected (get state :selected)
+                 id (record-id options record)]
+             (if (= :one (get options :selection-mode))
+               (if (contains? selected id)
+                 (assoc state :selected #{})
+                 (assoc state :selected #{id}))
+               (if (contains? selected id)
+                 (update state :selected disj id)
+                 (update state :selected conj id)))))))
+
+
+(defn- record-selected? [state options record]
+  (-> state :selected (contains? (record-id options record))))
+
+
+(defn record-row [STATE options record]
+  (let [selection-mode (get options :selection-mode)
+        selected? (when selection-mode (get record ::selected?))
+        on-click (or (when selection-mode
+                       #(toggle-selection STATE options record))
+                     (when-let [on-click (get options :on-click)]
+                       #(on-click {:record record})))]
+    ^{:key (-> record)}
+    [(r/adapt-react-class mui/TableRow)
+     {:hover true
+      :role (when selection-mode "checkbox")
+      :selected selected?
+      :on-click on-click
+      :style {:cursor (when selection-mode :pointer)}}
+     (when selection-mode
+       [(r/adapt-react-class mui/TableCell)
+        {:padding "checkbox"}
+        [:> mui/Checkbox
+         {:checked selected?}]])
+     (for [col (get options :cols)]
+       (record-cell options record col))]))
 
 
 (defn Table
   [options records]
-  (let [cols (get options :cols)
-        selection-mode (get options :selection-mode)]
+  (let [STATE (r/atom {:selected #{}})]
+    (fn [options records]
+      (let [state @STATE
+            records (map (fn [record]
+                           (assoc record
+                                  ::selected?
+                                  (record-selected? state options record)))
+                         records)]
+        [:div
+         [muic/Data {:state @STATE
+                     :options options}]
+         [:div.Table
+          [:> mui/Table
+           {:size :small}
 
-    [:div.Table
-     [:> mui/Table
-      {:size :small}
+           [TableHead options]
 
-      [TableHead options]
-
-      [:> mui/TableBody
-       (for [record records]
-         (record-row options record))]]]))
+           [:> mui/TableBody
+            (for [record records]
+              (record-row STATE options record))]]]]))))
 
 
 (devcard
  ::Table
  [Table
   {:cols [{:key :name
+           :label "Name"
+           :type :text}
+          {:key :age}
+          {:key :data
+           :label "Data"
+           :type :edn}]}
+  [{:id "1"  :name "Witek"  :age 40 :data "a string"}
+   {:id "2"  :name "Artjom" :age 34 :data 42}
+   {:id "4"  :name "Fabian" :age 37 :data :a-keyword}
+   {:id "25" :name "Kacper" :age 37}]])
+
+
+(devcard
+ ::Table-selection-mode-many
+ [Table
+  {:selection-mode :many
+   :cols [{:key :name
+           :label "Name"
+           :type :text}
+          {:key :age}
+          {:key :data
+           :label "Data"
+           :type :edn}]}
+  [{:id "1"  :name "Witek"  :age 40 :data "a string"}
+   {:id "2"  :name "Artjom" :age 34 :data 42}
+   {:id "4"  :name "Fabian" :age 37 :data :a-keyword}
+   {:id "25" :name "Kacper" :age 37}]])
+
+
+(devcard
+ ::Table-selection-mode-one
+ [Table
+  {:selection-mode :one
+   :cols [{:key :name
            :label "Name"
            :type :text}
           {:key :age}
