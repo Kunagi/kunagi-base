@@ -28,7 +28,12 @@
      [:span
       {:style {:font-weight :normal
                :color "#666"}}
-      (-> options :ns name str)]]
+      (-> options :ns name str)]
+     " "
+     [:> mui/Link
+      {:href (str "devcards?group=" (-> options :ns name)
+                  "&name=" (-> options :name name))}
+      "focus"]]
     [:div
      {:style {:display :flex
               :flex-wrap :wrap}}
@@ -43,14 +48,16 @@
        [muic/Data code]])]])
 
 
-(defn DevcardsGroup [group]
+(defn DevcardsGroup [group focus-card-name]
   (into
    [muic/Stack-1]
    (map (fn [devcard]
           [muic/ErrorBoundary
            [Devcard devcard]])
         (->> (devcards/devcards)
-             (filter #(= group (get % :ns)))
+             (filter #(and (= group (get % :ns))
+                           (or (not focus-card-name)
+                               (= focus-card-name (get % :name)))))
              (sort-by :id)
              reverse))))
 
@@ -75,7 +82,8 @@
 
 
 (defn Workarea [args]
-  (let [group-name (get args :group)]
+  (let [group-name (get args :group)
+        card-name (get args :name)]
     [:div
      {:style {:display :grid
               :grid-template-columns "180px auto"
@@ -85,7 +93,7 @@
      [:div
       (when group-name
         [muic/ErrorBoundary
-         [DevcardsGroup (keyword group-name)]])]]))
+         [DevcardsGroup (keyword group-name) (keyword card-name)]])]]))
 
 
 (def-module
