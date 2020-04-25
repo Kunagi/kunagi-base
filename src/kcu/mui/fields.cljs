@@ -8,54 +8,6 @@
    [mui-commons.theme :as theme]))
 
 
-
-;;; FieldValue ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(defn- value [field]
-  (or (get field :value)
-      (when-let [attr (get field :attr)]
-        (get (get field :entity) attr))))
-
-
-(defmulti FieldValue (fn [field] (get field :type :text)))
-
-
-(defmethod FieldValue :text [field]
-  (output/Text nil (value field)))
-
-
-(defmethod FieldValue :text-1 [field]
-  [:div (str (value field))])
-
-
-(defmethod FieldValue :text-n [field]
-  [:div
-   {:style {:white-space :pre-wrap}}
-   (str (value field))])
-
-
-(defmethod FieldValue :edn [field]
-  [muic/Data (value field)])
-
-
-(defn- Ref [ref]
-  [:> mui/Button
-   {:on-click (get ref :on-click)
-    :href (get ref :href)
-    :size :small
-    :variant :contained
-    :style {:text-transform :none}}
-   (or (get ref :text)
-       (str "? " ref))])
-
-
-(defmethod FieldValue :ref-n [field]
-  [muic/Inline
-   {:items (value field)
-    :template [Ref]}])
-
-
 ;;; FieldLabel ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -77,7 +29,15 @@
 ;;; Field ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defn Field [field]
+(defn- value [field]
+  (or (get field :value)
+      (when-let [attr (get field :attr)]
+        (get (get field :entity) attr))))
+
+
+(defn Field
+  "Renders a Field (Label + Value)"
+  [field]
   [:div.Field
    {:style {:cursor (when (-> field :on-click) :pointer)}
     :on-click (-> field :on-click)}
@@ -85,7 +45,8 @@
    [:div.Field__Value
     {:style {:min-height "24px"}}
     (or (get field :value-component)
-        [FieldValue field])]])
+        (output/output (assoc field
+                              :value (value field))))]])
 
 
 ;;; Fieldset ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
