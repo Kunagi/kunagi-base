@@ -1,6 +1,7 @@
 (ns kcu.mui.output
   (:require
    ["@material-ui/core" :as mui]
+   ["@material-ui/icons" :as icons]
 
    [kcu.utils :as u]
    [kcu.devcards :refer [devcard]]
@@ -63,21 +64,31 @@
   [:div.Output.Output-RefsButtons
    (into
     [muic/Inline]
-    (map (fn [{:keys [text id on-click href]}]
-           [:> mui/Button
-            {:on-click on-click
-             :href href
+    (-> []
+        (into
+         (map (fn [{:keys [text id on-click href]}]
+                [:> mui/Button
+                 {:on-click on-click
+                  :href href
+                  :size :small
+                  :variant :contained
+                  :style {:text-transform :none}}
+                 (or text
+                     (str "? " id))])
+              refs))
+        (conj
+         (when-let [on-add (get options :on-add)]
+           [:> mui/IconButton
+            {:on-click on-add
              :size :small
-             :variant :contained
+             :color :primary
              :style {:text-transform :none}}
-            (or text
-                (str "? " id))])
-         refs))])
+            [:> icons/Add]]))))])
 
 (devcard
  ::RefsButtons
  [RefsButtons
-  nil
+  {:on-add #(js/console.log "add")}
   [{:on-click #(js/console.log "Ref #1 clicked") :text "Ref #1"}
    {:href "/ui/devcards" :text "Ref #2"}
    {:on-click #(js/console.log "Ref #3 clicked") :text "Ref #3"}]])
