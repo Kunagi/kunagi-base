@@ -87,7 +87,9 @@
 
 (defn Table
   [options records]
-  (let [STATE (r/atom {:selected #{}})]
+  (let [STATE (r/atom {:selected (if-let [selected (get options :selected)]
+                                    (into #{} selected)
+                                    #{})})]
     (fn [options records]
       (let [state @STATE
             records (map (fn [record]
@@ -102,7 +104,8 @@
            [:input
             {:id select-input-id
              "data-value-is-edn" true
-             :type :hidden}])
+             :type :hidden
+             :value (u/encode-edn (get state :selected))}])
          [:div.Table
           [:> mui/Table
            {:size :small}

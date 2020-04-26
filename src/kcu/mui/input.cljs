@@ -49,6 +49,7 @@
      [table/Table
       {:selection-mode :one
        :selection-input-id value-field-id
+       :selected value
        :cols (map (fn [col]
                     (-> col))
                   select-cols)}
@@ -202,7 +203,7 @@
            trigger)
          [:> mui/Dialog
           {:open (-> state :open?)
-           :full-width true
+           ;; :full-width true
            :max-width :xl
            :on-close reset}
           (when-let [title (-> options :title)]
@@ -277,6 +278,7 @@
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :select-1
+                 :value #{:kacper}
                  :select-cols [{:key :name}
                                {:key :age}]
                  :select-options [{:id :witek
