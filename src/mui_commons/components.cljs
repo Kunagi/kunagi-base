@@ -51,7 +51,10 @@
           [:code
            {:style {:white-space :pre-wrap
                     :overflow :auto}}
-           (with-out-str (pprint/pprint data))])
+           (try
+             (with-out-str (pprint/pprint data))
+             (catch :default ex
+               "!!! ERROR !!! pprint failed for data"))])
         datas)))
 
 (devcard

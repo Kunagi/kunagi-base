@@ -16,7 +16,7 @@
 
 
 (defn navigate-to [href]
-  (set! (.-location js/window) "/sign-out"))
+  (set! (.-location js/window) href))
 
 
 (defn combi-ratom [input-ratoms update-f]
@@ -37,6 +37,18 @@
 
 (def url-encode camerick-url/url-encode)
 
+
+(defn url-encode-path+args [path parameters]
+  (str (url-encode path)
+       (reduce
+        (fn [s [k v]]
+          (str s
+               (if (empty? s) "?" "&")
+               (url-encode (name k))
+               "="
+               (url-encode v)))
+        ""
+        parameters)))
 
 ;;; AJAX ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

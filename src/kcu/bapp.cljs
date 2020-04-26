@@ -9,6 +9,7 @@
    [re-frame.db :as rf-db]
    [ajax.core :as ajax]
    [taoensso.sente  :as sente]
+   [accountant.core :as accountant]
 
    [kcu.tap]
 
@@ -22,6 +23,19 @@
 
 
 ;; TODO catch uncatched errors
+
+
+;;; navigation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn navigate! [page-ident page-args]
+  (accountant/navigate!
+   (str "/ui/"
+        (bu/url-encode-path+args
+         (if (= :index page-ident)
+           ""
+           (name page-ident))
+         page-args))))
 
 
 ;;; re-frame ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

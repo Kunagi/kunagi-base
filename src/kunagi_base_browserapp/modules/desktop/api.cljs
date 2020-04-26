@@ -6,6 +6,7 @@
    [accountant.core :as accountant]
    [cemerick.url :refer (url url-encode)]
 
+   [kcu.bapp :as bapp]
    [kunagi-base.utils :as utils]
    [kunagi-base.appmodel :as am]
    [kunagi-base-browserapp.modules.tracking.api :as tracking]
@@ -31,22 +32,7 @@
     (am/entity! [:page/ident page-ident])))
 
 
-(defn navigate! [page-ident page-args]
-  (accountant/navigate!
-   (str "/ui/"
-        (when-not (= :index page-ident)
-          (url-encode (name page-ident)))
-        (when-not (empty? page-args)
-          (reduce
-           (fn [s [k v]]
-             (str s
-                  (if (empty? s) "?" "&")
-                  (url-encode (name k))
-                  "="
-                  (url-encode v)))
-           ""
-           page-args)))))
-
+(def navigate! bapp/navigate!)
 
 
 (defn- activate-page
