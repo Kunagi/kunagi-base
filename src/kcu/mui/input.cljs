@@ -83,7 +83,7 @@
 (devcard
  ::select-1
  (Field {:type :select-1
-         :value :witek
+         :value #{:witek}
          :options-value-key :id
          :select-cols [{:label "Name"
                         :key :name

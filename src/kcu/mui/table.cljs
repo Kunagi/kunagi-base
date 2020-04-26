@@ -87,6 +87,7 @@
 
 (defn Table
   [options records]
+  ;; TODO assert :selected is set
   (let [STATE (r/atom {:selected (if-let [selected (get options :selected)]
                                     (into #{} selected)
                                     #{})})]
@@ -137,6 +138,7 @@
  ::Table-selection-mode-many
  [Table
   {:selection-mode :many
+   :selected #{"1" "4"}
    :cols [{:key :name
            :label "Name"
            :type :text}
@@ -154,6 +156,7 @@
  ::Table-selection-mode-one
  [Table
   {:selection-mode :one
+   :selected #{"4"}
    :cols [{:key :name
            :label "Name"
            :type :text}
