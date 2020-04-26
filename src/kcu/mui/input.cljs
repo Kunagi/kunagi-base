@@ -43,17 +43,16 @@
 
 (defn Select-1
   [{:keys [value options-value-key select-cols select-options value-field-id]}]
-  (let [x nil]
-    [:div
-     ;; [muic/DataCard :select-options select-options]
-     [table/Table
-      {:selection-mode :one
-       :selection-input-id value-field-id
-       :selected value
-       :cols (map (fn [col]
-                    (-> col))
-                  select-cols)}
-      select-options]]))
+  [:div
+   ;; [muic/DataCard :select-options select-options]
+   [table/Table
+    {:selection-mode :one
+     :selection-input-id value-field-id
+     :selected value
+     :cols (map (fn [col]
+                  (-> col))
+                select-cols)}
+    select-options]])
 
 
 ;;; dispatcher ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -121,11 +120,18 @@
 (def DIALOGS (r/atom {}))
 
 
+(defn DialogContainer [dialog]
+  (js/console.log "painting dialog" dialog)
+  [:div
+   dialog])
+
+
 (defn DialogsContainer []
-  (into
-   [:div.DialogsContainer]
-   ;; [muic/DataCard (-> @DIALOGS vals)]]
-   (-> @DIALOGS vals)))
+  [:div.DialogsContainer
+   ;; [muic/DataCard (-> @DIALOGS vals)]
+   (for [[id dialog] (-> @DIALOGS)]
+     ^{:key id}
+     [DialogContainer dialog])])
 
 
 (defn- engage-dialog-trigger [trigger STATE]
@@ -288,4 +294,18 @@
                                    :name "Kacper"
                                    :age 37}]
                  :on-submit (fn [value] (js/console.log value) true)})}
-   "Select-1"]])
+   "Select-1"]
+
+  [:> mui/Button
+   {:on-click #(show-dialog
+                {:type :text-1
+                 :title "Input 1"
+                 :on-submit (fn [value-a]
+                              (show-dialog
+                               {:type :text-1
+                                :title "Input 2"
+                                :on-submit (fn [value-b]
+                                             (js/console.log value-a value-b)
+                                             true)})
+                              true)})}
+   "Two Dialogs"]])
