@@ -183,12 +183,18 @@
         unblock (fn [options]
                   (swap! STATE merge
                          options {:blocked? false}))
-        submit #(when ((-> options :on-submit)
-                       %
-                       {:close reset
-                        :block block
-                        :unblock unblock})
-                  (reset))]
+        submit (fn [value]
+                 (let [on-submit (-> options :on-submit)
+                       close? (if-not on-submit
+                                 true
+                                 (on-submit value
+                                            {:close reset
+                                             :block block
+                                             :unblock unblock}))]
+                   (when close?
+                     (when-let [on-submitted (-> options :on-submitted)]
+                       (u/invoke-later! 100 #(on-submitted value)))
+                     (reset))))]
     (fn [options]
       (let [state @STATE
             blocked? (-> state :blocked?)
@@ -264,21 +270,21 @@
    {:on-click #(show-dialog
                 {:type :text-1
                  :value "text-1"
-                 :on-submit (fn [value] (js/console.log value) true)})}
+                 :on-submitted (fn [value] (js/console.log value) true)})}
    "Text-1"]
 
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :text-n
                  :value "multiline\ntext"
-                 :on-submit (fn [value] (js/console.log value) true)})}
+                 :on-submitted (fn [value] (js/console.log value) true)})}
    "Text-n"]
 
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :code
                  :value "{:data here}"
-                 :on-submit (fn [value] (js/console.log value) true)})}
+                 :on-submitted (fn [value] (js/console.log value) true)})}
    "Code"]
 
   [:> mui/Button
@@ -293,19 +299,19 @@
                                   {:id :kacper
                                    :name "Kacper"
                                    :age 37}]
-                 :on-submit (fn [value] (js/console.log value) true)})}
+                 :on-submitted (fn [value] (js/console.log value) true)})}
    "Select-1"]
 
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :text-1
                  :title "Input 1"
-                 :on-submit (fn [value-a]
-                              (show-dialog
-                               {:type :text-1
-                                :title "Input 2"
-                                :on-submit (fn [value-b]
-                                             (js/console.log value-a value-b)
-                                             true)})
-                              true)})}
+                 :on-submitted (fn [value-a]
+                                 (show-dialog
+                                  {:type :text-1
+                                   :title "Input 2"
+                                   :on-submitted (fn [value-b]
+                                                   (js/console.log value-a value-b)
+                                                   true)})
+                                 true)})}
    "Two Dialogs"]])
