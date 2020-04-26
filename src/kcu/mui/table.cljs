@@ -44,14 +44,18 @@
   (swap! STATE
          (fn [state]
            (let [selected (get state :selected)
-                 id (record-id options record)]
-             (if (= :one (get options :selection-mode))
-               (if (contains? selected id)
-                 (assoc state :selected #{})
-                 (assoc state :selected #{id}))
-               (if (contains? selected id)
-                 (update state :selected disj id)
-                 (update state :selected conj id)))))))
+                 id (record-id options record)
+                 selected (if (= :one (get options :selection-mode))
+                            (if (contains? selected id)
+                              #{}
+                              #{id})
+                            (if (contains? selected id)
+                              (disj selected id)
+                              (conj selected id)))]
+             (when-let [select-input-id (get options :selection-input-id)]
+               (set! (-> (js/document.getElementById select-input-id) .-value)
+                     (u/encode-edn selected)))
+             (assoc state :selected selected)))))
 
 
 (defn- record-selected? [state options record]
@@ -92,8 +96,13 @@
                                   (record-selected? state options record)))
                          records)]
         [:div
-         [muic/Data {:state @STATE
-                     :options options}]
+         ;; [muic/Data {:state @STATE
+         ;;             :options options}]
+         (when-let [select-input-id (get options :selection-input-id)]
+           [:input
+            {:id select-input-id
+             "data-value-is-edn" true
+             :type :hidden}])
          [:div.Table
           [:> mui/Table
            {:size :small}

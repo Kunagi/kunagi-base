@@ -42,14 +42,17 @@
 
 
 (defn Select-1
-  [{:as options
-    :keys [value options-value-key options-columns options]}]
+  [{:keys [value options-value-key select-cols select-options value-field-id]}]
   (let [x nil]
-   [table/Table
-    {:cols (map (fn [col]
-                  (-> col))
-                options-columns)}
-    options]))
+    [:div
+     ;; [muic/DataCard :select-options select-options]
+     [table/Table
+      {:selection-mode :one
+       :selection-input-id value-field-id
+       :cols (map (fn [col]
+                    (-> col))
+                  select-cols)}
+      select-options]]))
 
 
 ;;; dispatcher ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82,17 +85,17 @@
  (Field {:type :select-1
          :value :witek
          :options-value-key :id
-         :options-columns [{:label "Name"
-                            :key :name
-                            :type :text-1}
-                           {:label "Age"
-                            :key :age}]
-         :options [{:id :kacper
-                    :name "Kacper"
-                    :age 37}
-                   {:id :witek
-                    :name "Witek"
-                    :age 40}]}))
+         :select-cols [{:label "Name"
+                        :key :name
+                        :type :text-1}
+                       {:label "Age"
+                        :key :age}]
+         :select-options [{:id :kacper
+                           :name "Kacper"
+                           :age 37}
+                          {:id :witek
+                           :name "Witek"
+                           :age 40}]}))
 
 
 (devcard
@@ -158,7 +161,13 @@
                           (assoc :value (get options :value ""))))
         value-field-id (str "editor-dialog-field-" (random-uuid))
         value-getter (fn []
-                       (-> (js/document.getElementById value-field-id) .-value))
+                       (let [e (js/document.getElementById value-field-id)
+                             edn? (-> e (.getAttribute "data-value-is-edn"))
+                             value (-> e .-value)]
+                         (js/console.log "edn?" edn?)
+                         (if edn?
+                           (u/decode-edn value)
+                           value)))
         reset (fn []
                 (reset! STATE initial-state)
                 (when-let [on-close (get options :on-close)]
@@ -178,12 +187,12 @@
             blocked? (-> state :blocked?)
             error-text (-> state :error-text)
             Field (Field
-                   {:type (-> options :type)
-                    :value (-> options :value)
-                    :value-field-id value-field-id
-                    ;; :on-change #(swap! STATE assoc :value %)
-                    :submit-f submit
-                    :disabled? blocked?})]
+                   (-> options
+                       (assoc :type (-> options :type)
+                              :value (-> options :value)
+                              :value-field-id value-field-id
+                              :submit-f submit
+                              :disabled? blocked?)))]
         [:div
          (when-let [trigger (or (engage-dialog-trigger (-> options :trigger)
                                                        STATE)
@@ -212,8 +221,8 @@
            Field]
 
           (when blocked?
-           [:> mui/LinearProgress
-            {:color :secondary}])
+            [:> mui/LinearProgress
+             {:color :secondary}])
           [:> mui/DialogActions
            [:> mui/Button
             {:on-click reset
@@ -248,19 +257,33 @@
    {:on-click #(show-dialog
                 {:type :text-1
                  :value "text-1"
-                 :on-submit (fn [] (js/console.log) true)})}
+                 :on-submit (fn [value] (js/console.log value) true)})}
    "Text-1"]
 
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :text-n
                  :value "multiline\ntext"
-                 :on-submit (fn [] (js/console.log) true)})}
+                 :on-submit (fn [value] (js/console.log value) true)})}
    "Text-n"]
 
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :code
                  :value "{:data here}"
-                 :on-submit (fn [] (js/console.log) true)})}
-   "Code"]])
+                 :on-submit (fn [value] (js/console.log value) true)})}
+   "Code"]
+
+  [:> mui/Button
+   {:on-click #(show-dialog
+                {:type :select-1
+                 :select-cols [{:key :name}
+                               {:key :age}]
+                 :select-options [{:id :witek
+                                   :name "Witek"
+                                   :age 40}
+                                  {:id :kacper
+                                   :name "Kacper"
+                                   :age 37}]
+                 :on-submit (fn [value] (js/console.log value) true)})}
+   "Select-1"]])
