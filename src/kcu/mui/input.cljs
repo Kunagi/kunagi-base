@@ -16,7 +16,8 @@
 (defn Text
   [{:as options
     :keys [value submit-f disabled?
-           value-field-id error-text]}
+           value-field-id error-text
+           value-is-edn?]}
    special-options]
   (muic/with-css
     {"& textarea" {:font-family (when (get special-options :monospace?)
@@ -33,9 +34,35 @@
                          (submit-f (-> % .-target .-value))))
        :disabled disabled?
        :error (boolean error-text)
-       :helper-text error-text}
+       :helper-text error-text
+       :style {:min-width (when (get special-options :multiline)
+                            "300px")}}
+      (when value-is-edn?
+        {:input-props {"data-value-is-edn" "true"}})
       (dissoc special-options :monospace?))]))
 
+
+(defn Text-n [options]
+  (Text options
+        {:multiline true
+         :rows 20}))
+
+
+(defn Code [options]
+  (Text options
+        {:multiline true
+         :rows 20
+         :monospace? true}))
+
+
+(defn EdnAsText [options]
+  (let [value (u/encode-edn (get options :value))]
+    (Text (assoc options
+                 :value value
+                 :value-is-edn? true)
+          {:multiline true
+           :rows 20
+           :monospace? true})))
 
 
 ;;; Select-1 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -61,23 +88,12 @@
 (defn Field
   [options]
   (case (get options :type)
-
-    :text-n (Text options
-                  {:multiline true
-                   :rows 20})
-
+    :text-n (Text-n options)
     :text-1 (Text options {})
-
-    :code (Text options
-                {:multiline true
-                 :rows 20
-                 :monospace? true})
-
+    :code (Code options)
+    :edn (EdnAsText options)
     :select-1 (Select-1 options)
-
     (Text options {})))
-
-
 
 
 (devcard
@@ -113,6 +129,11 @@
  (Field {:type :code
          :value "{:hello \"World\"}"}))
 
+(devcard
+ ::edn
+ (Field {:type :edn
+         :value {:hello ["world"]
+                 :of #{:clojure 42}}}))
 
 ;;; Dialogs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -171,7 +192,6 @@
                        (let [e (js/document.getElementById value-field-id)
                              edn? (-> e (.getAttribute "data-value-is-edn"))
                              value (-> e .-value)]
-                         (js/console.log "edn?" edn?)
                          (if edn?
                            (u/decode-edn value)
                            value)))
@@ -286,6 +306,13 @@
                  :value "{:data here}"
                  :on-submitted (fn [value] (js/console.log value) true)})}
    "Code"]
+
+  [:> mui/Button
+   {:on-click #(show-dialog
+                {:type :edn
+                 :value {:real ["EDN" #{:value}]}
+                 :on-submitted (fn [value] (js/console.log value) true)})}
+   "EDN"]
 
   [:> mui/Button
    {:on-click #(show-dialog
