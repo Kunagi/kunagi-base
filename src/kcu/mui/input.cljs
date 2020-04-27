@@ -99,7 +99,7 @@
 (devcard
  ::select-1
  (Field {:type :select-1
-         :value #{:witek}
+         :value :witek
          :options-value-key :id
          :select-cols [{:label "Name"
                         :key :name
@@ -317,7 +317,7 @@
   [:> mui/Button
    {:on-click #(show-dialog
                 {:type :select-1
-                 :value #{:kacper}
+                 :value :kacper
                  :select-cols [{:key :name}
                                {:key :age}]
                  :select-options [{:id :witek

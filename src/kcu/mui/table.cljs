@@ -46,9 +46,9 @@
            (let [selected (get state :selected)
                  id (record-id options record)
                  selected (if (= :one (get options :selection-mode))
-                            (if (contains? selected id)
-                              #{}
-                              #{id})
+                            (if (= selected id)
+                              nil
+                              id)
                             (if (contains? selected id)
                               (disj selected id)
                               (conj selected id)))]
@@ -59,7 +59,9 @@
 
 
 (defn- record-selected? [state options record]
-  (-> state :selected (contains? (record-id options record))))
+  (if (= :one (get options :selection-mode))
+    (-> state :selected (= (record-id options record)))
+    (-> state :selected (contains? (record-id options record)))))
 
 
 (defn record-row [STATE options record]
@@ -88,9 +90,14 @@
 (defn Table
   [options records]
   ;; TODO assert :selected is set
-  (let [STATE (r/atom {:selected (if-let [selected (get options :selected)]
-                                    (into #{} selected)
-                                    #{})})]
+  (let [selection-mode-one? (= :one (get options :selection-mode))
+        STATE (r/atom {:selected (if-let [selected (get options :selected)]
+                                   (if selection-mode-one?
+                                     selected
+                                     (into #{} selected))
+                                   (if selection-mode-one?
+                                     nil
+                                     #{}))})]
     (fn [options records]
       (let [state @STATE
             records (map (fn [record]
