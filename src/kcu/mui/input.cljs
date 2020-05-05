@@ -81,6 +81,20 @@
                 select-cols)}
     select-options]])
 
+(defn Select-n
+  [{:keys [value options-value-key select-cols select-options value-field-id]}]
+  [:div
+   ;; [muic/DataCard :select-options select-options]
+   [table/Table
+    {:selection-mode :many
+     :selection-input-id value-field-id
+     :selected value
+     :cols (map (fn [col]
+                  (-> col))
+                select-cols)}
+    select-options]])
+
+
 
 ;;; dispatcher ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -93,6 +107,7 @@
     :code (Code options)
     :edn (EdnAsText options)
     :select-1 (Select-1 options)
+    :select-n (Select-n options)
     (Text options {})))
 
 
@@ -112,6 +127,27 @@
                           {:id :witek
                            :name "Witek"
                            :age 40}]}))
+
+
+(devcard
+ ::select-n
+ (Field {:type :select-n
+         :value #{:witek}
+         :options-value-key :id
+         :select-cols [{:label "Name"
+                        :key :name
+                        :type :text-1}
+                       {:label "Age"
+                        :key :age}]
+         :select-options [{:id :kacper
+                           :name "Kacper"
+                           :age 37}
+                          {:id :witek
+                           :name "Witek"
+                           :age 40}
+                          {:id :artjom
+                           :name "Artjom"
+                           :age 35}]}))
 
 
 (devcard
